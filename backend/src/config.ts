@@ -16,7 +16,7 @@ const ConfigSchema = z.object({
   // ── Onchain ──────────────────────────────────────────────────────────────
   /** Arbitrum Sepolia RPC(s). Can be a comma-separated list. */
   RPC_URL: z.string()
-    .default('https://lb.drpc.live/arbitrum-sepolia/AuajrTfUKUDcljFTxiXAxPOrBZbcQJQR8Jr2uuQ63qxe')
+    .default('https://sepolia-rollup.arbitrum.io/rpc')
     .refine(
       (value) => value.split(',').every((url) => z.string().url().safeParse(url.trim()).success),
       'Must contain one URL or a comma-separated list of URLs',

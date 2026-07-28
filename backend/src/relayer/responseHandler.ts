@@ -14,7 +14,7 @@ import { SETTLEMENT_ABI } from './abi.js'
 import { publicClient } from './wallet.js'
 import { config } from '../config.js'
 import { logger } from '../observability/logger.js'
-import { txConfirmed } from '../observability/metrics.js'
+import { txConfirmed, txLatency } from '../observability/metrics.js'
 import { updatePaymentStatus } from '../db/paymentLog.js'
 import { classifyError } from '../errors/classifier.js'
 
@@ -27,6 +27,22 @@ export interface ReceiptResult {
   txHash:          string
   blockNumber:     number | null
   revertReason?:   string
+  blockHash?:      string
+  gasUsed?:        bigint
+  effectiveGasPrice?: bigint
+  feeWei?:         bigint
+  confirmationMs?: number
+  events:          DecodedPaymentEvent[]
+}
+
+export interface DecodedPaymentEvent {
+  eventName: 'PaymentAuthorized' | 'PaymentCaptured' | 'PaymentReleased' | 'PaymentExpired'
+  txId: string
+  logIndex: number
+  amount?: bigint
+  tokenAddress?: string
+  userAddress?: string
+  merchantAddress?: string
 }
 
 const CONTRACT = config.CONTRACT_ADDRESS as Address
@@ -60,13 +76,29 @@ export async function waitForReceipt(
         onchain_status: 'reverted',
         revert_reason:  revertReason,
       })
-      return { outcome: 'reverted', isoResponseCode: '05', txHash, blockNumber: Number(receipt.blockNumber), revertReason }
+      const confirmationMs = Math.round(Date.now() - submittedAt)
+      txLatency.observe({ phase: 'tx_confirm' }, confirmationMs)
+      return {
+        outcome: 'reverted',
+        isoResponseCode: '05',
+        txHash,
+        blockNumber: Number(receipt.blockNumber),
+        blockHash: receipt.blockHash,
+        revertReason,
+        gasUsed: receipt.gasUsed,
+        effectiveGasPrice: receipt.effectiveGasPrice,
+        feeWei: receipt.gasUsed * receipt.effectiveGasPrice,
+        confirmationMs,
+        events: [],
+      }
     }
 
     // ── Successful – read events ──────────────────────────────────────────────
-    const outcome = extractOutcome(receipt.logs)
-    const elapsed = (Date.now() - submittedAt) / 1000
-    log.info({ outcome, blockNumber: receipt.blockNumber.toString(), elapsed }, 'Transaction confirmed')
+    const events = decodePaymentEvents(receipt.logs)
+    const outcome = extractOutcome(events)
+    const confirmationMs = Math.round(Date.now() - submittedAt)
+    txLatency.observe({ phase: 'tx_confirm' }, confirmationMs)
+    log.info({ outcome, blockNumber: receipt.blockNumber.toString(), confirmationMs }, 'Transaction confirmed')
     txConfirmed.inc()
 
     await updatePaymentStatus(txId, 'confirmed', {
@@ -74,7 +106,18 @@ export async function waitForReceipt(
       block_number:   Number(receipt.blockNumber),
       onchain_status: outcome,
     })
-    return { outcome, isoResponseCode: '00', txHash, blockNumber: Number(receipt.blockNumber) }
+    return {
+      outcome,
+      isoResponseCode: '00',
+      txHash,
+      blockNumber: Number(receipt.blockNumber),
+      blockHash: receipt.blockHash,
+      gasUsed: receipt.gasUsed,
+      effectiveGasPrice: receipt.effectiveGasPrice,
+      feeWei: receipt.gasUsed * receipt.effectiveGasPrice,
+      confirmationMs,
+      events,
+    }
 
   } catch (err) {
     const classified = classifyError(err)
@@ -86,24 +129,66 @@ export async function waitForReceipt(
       revert_reason:  classified.message,
       last_error:     classified.code,
     })
-    return { outcome: 'timeout', isoResponseCode: '96', txHash, blockNumber: null }
+    const confirmationMs = Math.round(Date.now() - submittedAt)
+    txLatency.observe({ phase: 'tx_confirm' }, confirmationMs)
+    return {
+      outcome: 'timeout',
+      isoResponseCode: '96',
+      txHash,
+      blockNumber: null,
+      confirmationMs,
+      events: [],
+    }
   }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-type Log = { topics: readonly `0x${string}`[]; data: `0x${string}` }
+type Log = {
+  topics: readonly `0x${string}`[]
+  data: `0x${string}`
+  logIndex?: number | null
+}
 
-function extractOutcome(logs: Log[]): OnchainOutcome {
+export function decodePaymentEvents(logs: readonly Log[]): DecodedPaymentEvent[] {
+  const events: DecodedPaymentEvent[] = []
   for (const log of logs) {
     try {
       if (log.topics.length === 0) continue
       const topics = [...log.topics] as [`0x${string}`, ...`0x${string}`[]]
       const decoded = decodeEventLog({ abi: SETTLEMENT_ABI, data: log.data, topics })
-      if (decoded.eventName === 'PaymentAuthorized') return 'authorized'
-      if (decoded.eventName === 'PaymentCaptured')   return 'captured'
-      if (decoded.eventName === 'PaymentReleased')   return 'released'
+      if (
+        decoded.eventName !== 'PaymentAuthorized' &&
+        decoded.eventName !== 'PaymentCaptured' &&
+        decoded.eventName !== 'PaymentReleased' &&
+        decoded.eventName !== 'PaymentExpired'
+      ) continue
+      const args = decoded.args as {
+        txId?: string
+        amount?: bigint
+        token?: string
+        user?: string
+        merchant?: string
+      }
+      events.push({
+        eventName: decoded.eventName,
+        txId: args.txId ?? '',
+        logIndex: log.logIndex ?? 0,
+        amount: args.amount,
+        tokenAddress: args.token,
+        userAddress: args.user,
+        merchantAddress: args.merchant,
+      })
     } catch { /* not our event */ }
+  }
+  return events
+}
+
+function extractOutcome(events: DecodedPaymentEvent[]): OnchainOutcome {
+  for (const event of events) {
+    if (event.eventName === 'PaymentAuthorized') return 'authorized'
+    if (event.eventName === 'PaymentCaptured')   return 'captured'
+    if (event.eventName === 'PaymentReleased')   return 'released'
   }
   return 'authorized'
 }

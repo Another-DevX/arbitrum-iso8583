@@ -27,21 +27,18 @@ import {MockERC20} from "../test/mocks/MockERC20.sol";
  *     --broadcast --slow -vvvv
  */
 contract FundUsersMint is Script {
-
-    uint256 internal constant N_USERS     = 4;
+    uint256 internal constant N_USERS = 4;
     uint256 internal constant DEPOSIT_AMT = 1_000e6;
-    uint256 internal constant ETH_SEED    = 0.005 ether;
+    uint256 internal constant ETH_SEED = 0.005 ether;
 
     address internal constant PROXY = 0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72;
-    address internal constant USDC  = 0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA;
-    address internal constant USDT  = 0xC7f974b3710560D070dEc95288339EfAB683C417;
+    address internal constant USDC = 0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA;
+    address internal constant USDT = 0xC7f974b3710560D070dEc95288339EfAB683C417;
 
     string internal constant TEST_MNEMONIC =
         "bamboo scout soldier devote tooth ugly foot drive lamp upset arrange grape";
 
-    string[4] internal CARD_TOKENS = [
-        "TOK_TEST_001", "TOK_TEST_002", "TOK_TEST_003", "TOK_TEST_004"
-    ];
+    string[4] internal CARD_TOKENS = ["TOK_TEST_001", "TOK_TEST_002", "TOK_TEST_003", "TOK_TEST_004"];
 
     function _contractAvailable(address user, address token) internal view returns (uint256 av) {
         (av,) = IArbitrumSettlementCore(PROXY).getBalance(user, token);

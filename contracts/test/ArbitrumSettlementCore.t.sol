@@ -30,7 +30,7 @@ import {
 /// @dev ERC-20 that invokes an arbitrary payload during `transfer`.
 ///      Verifies that the nonReentrant guards in ArbitrumSettlementCore hold.
 contract ReentrantToken is MockERC20 {
-    bytes  public attackPayload;
+    bytes public attackPayload;
     address public attackTarget;
 
     constructor() MockERC20("ReentrantUSD", "RUSD", 6) {}
@@ -44,11 +44,11 @@ contract ReentrantToken is MockERC20 {
         if (attackTarget != address(0) && attackPayload.length > 0) {
             address t = attackTarget;
             bytes memory p = attackPayload;
-            attackTarget   = address(0);
-            attackPayload  = "";
+            attackTarget = address(0);
+            attackPayload = "";
             // The reentrant call must be rejected by nonReentrant; we deliberately
             // ignore the return value.
-            (bool ok, ) = t.call(p);
+            (bool ok,) = t.call(p);
             (ok);
         }
         return super.transfer(to, amount);
@@ -69,11 +69,7 @@ contract MockFeeOnTransferERC20 is MockERC20 {
     constructor() MockERC20("FeeUSD", "FUSD", 6) {}
 
     /// @dev Burns FEE from the recipient's balance on every transferFrom.
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public override returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
         bool ok = super.transferFrom(from, to, amount);
         // The destination contract "loses" FEE: we burn from `to`'s balance.
         if (ok && balanceOf(to) >= FEE) {
@@ -91,26 +87,21 @@ contract MockFeeOnTransferERC20 is MockERC20 {
 ///      during invariant fuzzing.
 contract SettlementHandler is Test {
     ArbitrumSettlementCore public core;
-    MockERC20              public token;
+    MockERC20 public token;
     address public relayer;
     address public admin;
 
     address[] public users;
     bytes32[] public activeTxIds;
-    uint256   public nextTxSeed;
+    uint256 public nextTxSeed;
 
     mapping(address => bool) private _registeredUser;
 
-    constructor(
-        ArbitrumSettlementCore _core,
-        MockERC20              _token,
-        address                _relayer,
-        address                _admin
-    ) {
-        core    = _core;
-        token   = _token;
+    constructor(ArbitrumSettlementCore _core, MockERC20 _token, address _relayer, address _admin) {
+        core = _core;
+        token = _token;
         relayer = _relayer;
-        admin   = _admin;
+        admin = _admin;
     }
 
     // --- internal helpers ---
@@ -135,7 +126,7 @@ contract SettlementHandler is Test {
 
     function deposit(uint256 userSeed, uint96 rawAmount) external {
         if (users.length == 0) return;
-        address u      = _nextUser(userSeed);
+        address u = _nextUser(userSeed);
         uint256 balance = token.balanceOf(u);
         if (balance == 0) return;
         uint256 amount = bound(rawAmount, 1, balance);
@@ -149,7 +140,7 @@ contract SettlementHandler is Test {
     function withdraw(uint256 userSeed, uint96 rawAmount) external {
         if (users.length == 0) return;
         address u = _nextUser(userSeed);
-        (uint256 avail, ) = core.getBalance(u, address(token));
+        (uint256 avail,) = core.getBalance(u, address(token));
         if (avail == 0) return;
         uint256 amount = bound(rawAmount, 1, avail);
 
@@ -160,13 +151,13 @@ contract SettlementHandler is Test {
     function authorize(uint256 userSeed, uint96 rawAmount) external {
         if (users.length == 0) return;
         address u = _nextUser(userSeed);
-        (uint256 avail, ) = core.getBalance(u, address(token));
+        (uint256 avail,) = core.getBalance(u, address(token));
         if (avail == 0) return;
 
-        uint256 amount   = bound(rawAmount, 1, avail);
-        bytes32 txId     = _nextTxId();
-        uint48  expiresAt = uint48(block.timestamp + 1 hours);
-        address merch    = address(uint160(uint256(keccak256(abi.encode("merch", userSeed)))));
+        uint256 amount = bound(rawAmount, 1, avail);
+        bytes32 txId = _nextTxId();
+        uint48 expiresAt = uint48(block.timestamp + 1 hours);
+        address merch = address(uint160(uint256(keccak256(abi.encode("merch", userSeed)))));
 
         vm.prank(relayer);
         core.authorize(txId, u, merch, address(token), amount, expiresAt);
@@ -179,7 +170,7 @@ contract SettlementHandler is Test {
         bytes32 txId = activeTxIds[txSeed % activeTxIds.length];
         Hold memory h = core.getHold(txId);
         if (h.status != HoldStatus.AUTHORIZED) return;
-        if (block.timestamp > h.expiresAt)      return;
+        if (block.timestamp > h.expiresAt) return;
 
         vm.prank(relayer);
         core.capture(txId);
@@ -237,22 +228,21 @@ contract SettlementHandler is Test {
 // Unit tests
 // =============================================================================
 
-
 contract ArbitrumSettlementCoreTest is Test {
     ArbitrumSettlementCore core;
     MockERC20 token;
 
-    address admin    = makeAddr("admin");
-    address relayer  = makeAddr("relayer");
-    address pauser   = makeAddr("pauser");
-    address user     = makeAddr("user");
+    address admin = makeAddr("admin");
+    address relayer = makeAddr("relayer");
+    address pauser = makeAddr("pauser");
+    address user = makeAddr("user");
     address merchant = makeAddr("merchant");
     address stranger = makeAddr("stranger");
 
     bytes32 constant TX1 = keccak256("tx1");
     bytes32 constant TX2 = keccak256("tx2");
     uint256 constant AMOUNT = 100e6;
-    uint48  expiresAt;
+    uint48 expiresAt;
 
     // -------------------------------------------------------------------------
     // Setup
@@ -268,7 +258,7 @@ contract ArbitrumSettlementCoreTest is Test {
 
         vm.startPrank(admin);
         core.grantRole(core.RELAYER_ROLE(), relayer);
-        core.grantRole(core.PAUSER_ROLE(),  pauser);
+        core.grantRole(core.PAUSER_ROLE(), pauser);
         core.configureToken(address(token), true);
         vm.stopPrank();
 
@@ -281,10 +271,10 @@ contract ArbitrumSettlementCoreTest is Test {
     // =========================================================================
 
     function test_deploy_adminRolesAssigned() public view {
-        assertTrue(core.hasRole(core.DEFAULT_ADMIN_ROLE(), admin),  "admin: DEFAULT_ADMIN_ROLE");
-        assertTrue(core.hasRole(core.PAUSER_ROLE(),        admin),  "admin: PAUSER_ROLE");
-        assertTrue(core.hasRole(core.TOKEN_ADMIN_ROLE(),   admin),  "admin: TOKEN_ADMIN_ROLE");
-        assertTrue(core.hasRole(core.RELAYER_ROLE(),       relayer),"relayer: RELAYER_ROLE");
+        assertTrue(core.hasRole(core.DEFAULT_ADMIN_ROLE(), admin), "admin: DEFAULT_ADMIN_ROLE");
+        assertTrue(core.hasRole(core.PAUSER_ROLE(), admin), "admin: PAUSER_ROLE");
+        assertTrue(core.hasRole(core.TOKEN_ADMIN_ROLE(), admin), "admin: TOKEN_ADMIN_ROLE");
+        assertTrue(core.hasRole(core.RELAYER_ROLE(), relayer), "relayer: RELAYER_ROLE");
     }
 
     function test_deploy_rejectsZeroAdmin() public {
@@ -344,7 +334,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.deposit(address(token), AMOUNT);
         vm.stopPrank();
 
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(avail, AMOUNT);
     }
 
@@ -367,7 +357,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.deposit(address(token), AMOUNT);
         vm.stopPrank();
 
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(avail, 2 * AMOUNT);
     }
 
@@ -386,9 +376,9 @@ contract ArbitrumSettlementCoreTest is Test {
         feeToken.approve(address(core), depositAmount);
         vm.expectRevert(
             abi.encodeWithSelector(
-                FeeOnTransferToken.selector,   // contract error
+                FeeOnTransferToken.selector, // contract error
                 address(feeToken),
-                depositAmount,                 // expected
+                depositAmount, // expected
                 depositAmount - feeToken.FEE() // received (actually transferred to contract)
             )
         );
@@ -405,7 +395,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.stopPrank();
 
         uint256 contractBalance = token.balanceOf(address(core));
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(contractBalance, avail, "contract balance must match ledger");
     }
 
@@ -422,15 +412,13 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.prank(user);
         core.withdraw(address(token), AMOUNT);
 
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(avail, 0);
     }
 
     function test_withdraw_rejectsInsufficientFunds() public {
         vm.prank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(InsufficientAvailableBalance.selector, 0, AMOUNT)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InsufficientAvailableBalance.selector, 0, AMOUNT));
         core.withdraw(address(token), AMOUNT);
     }
 
@@ -459,15 +447,13 @@ contract ArbitrumSettlementCoreTest is Test {
         core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
-        assertEq(avail,  0);
+        assertEq(avail, 0);
         assertEq(locked, AMOUNT);
     }
 
     function test_authorize_revertsWithoutDeposit() public {
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(InsufficientAvailableBalance.selector, 0, AMOUNT)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InsufficientAvailableBalance.selector, 0, AMOUNT));
         core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
     }
 
@@ -478,9 +464,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.stopPrank();
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(InsufficientAvailableBalance.selector, AMOUNT / 2, AMOUNT)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InsufficientAvailableBalance.selector, AMOUNT / 2, AMOUNT));
         core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
     }
 
@@ -530,9 +514,7 @@ contract ArbitrumSettlementCoreTest is Test {
         uint48 past = uint48(block.timestamp - 1);
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(ExpiresAtInPast.selector, past, block.timestamp)
-        );
+        vm.expectRevert(abi.encodeWithSelector(ExpiresAtInPast.selector, past, block.timestamp));
         core.authorize(TX1, user, merchant, address(token), AMOUNT, past);
     }
 
@@ -585,9 +567,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.capture(TX1);
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.CAPTURED)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.CAPTURED));
         core.capture(TX1);
     }
 
@@ -603,9 +583,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.release(TX1);
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.RELEASED)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.RELEASED));
         core.capture(TX1);
     }
 
@@ -654,7 +632,7 @@ contract ArbitrumSettlementCoreTest is Test {
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
         assertEq(locked, 0);
-        assertEq(avail,  AMOUNT);
+        assertEq(avail, AMOUNT);
     }
 
     function test_release_rejectsAfterCapture() public {
@@ -669,9 +647,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.capture(TX1);
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.CAPTURED)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.CAPTURED));
         core.release(TX1);
     }
 
@@ -687,9 +663,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.release(TX1);
 
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.RELEASED)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.RELEASED));
         core.release(TX1);
     }
 
@@ -747,7 +721,7 @@ contract ArbitrumSettlementCoreTest is Test {
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
         assertEq(locked, 0);
-        assertEq(avail,  AMOUNT);
+        assertEq(avail, AMOUNT);
     }
 
     function test_expire_rejectsBeforeDeadline() public {
@@ -773,9 +747,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.warp(expiresAt + 1);
         core.expire(TX1);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.EXPIRED)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.EXPIRED));
         core.expire(TX1);
     }
 
@@ -802,7 +774,7 @@ contract ArbitrumSettlementCoreTest is Test {
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
         assertEq(locked, 0);
-        assertEq(avail,  2 * AMOUNT);
+        assertEq(avail, 2 * AMOUNT);
     }
 
     function test_batchExpire_rejectsOversizedBatch() public {
@@ -935,8 +907,8 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.prank(relayer);
         core.capture(TX1);
 
-        assertEq(token.balanceOf(user),         initialUserBalance - AMOUNT);
-        assertEq(token.balanceOf(merchant),      AMOUNT);
+        assertEq(token.balanceOf(user), initialUserBalance - AMOUNT);
+        assertEq(token.balanceOf(merchant), AMOUNT);
         assertEq(token.balanceOf(address(core)), 0);
     }
 
@@ -953,7 +925,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.prank(relayer);
         core.release(TX1);
 
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(avail, AMOUNT);
 
         vm.prank(user);
@@ -982,10 +954,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.authorize(TX1, user, merchant, address(rToken), AMOUNT, exp);
 
         // The token re-enters during the capture transfer
-        rToken.setAttack(
-            address(core),
-            abi.encodeCall(IArbitrumSettlementCore.capture, (TX1))
-        );
+        rToken.setAttack(address(core), abi.encodeCall(IArbitrumSettlementCore.capture, (TX1)));
 
         vm.prank(relayer);
         core.capture(TX1);
@@ -1092,9 +1061,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.stopPrank();
 
         vm.expectEmit(true, true, true, true);
-        emit IArbitrumSettlementCore.PaymentAuthorized(
-            TX1, user, merchant, address(token), AMOUNT, expiresAt
-        );
+        emit IArbitrumSettlementCore.PaymentAuthorized(TX1, user, merchant, address(token), AMOUNT, expiresAt);
         vm.prank(relayer);
         core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
     }
@@ -1108,9 +1075,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
 
         vm.expectEmit(true, true, true, true);
-        emit IArbitrumSettlementCore.PaymentCaptured(
-            TX1, user, merchant, address(token), AMOUNT
-        );
+        emit IArbitrumSettlementCore.PaymentCaptured(TX1, user, merchant, address(token), AMOUNT);
 
         vm.prank(relayer);
         core.capture(TX1);
@@ -1125,9 +1090,7 @@ contract ArbitrumSettlementCoreTest is Test {
         core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
 
         vm.expectEmit(true, true, true, true);
-        emit IArbitrumSettlementCore.PaymentReleased(
-            TX1, user, merchant, address(token), AMOUNT
-        );
+        emit IArbitrumSettlementCore.PaymentReleased(TX1, user, merchant, address(token), AMOUNT);
 
         vm.prank(relayer);
         core.release(TX1);
@@ -1144,9 +1107,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.warp(expiresAt + 1);
 
         vm.expectEmit(true, true, true, true);
-        emit IArbitrumSettlementCore.PaymentExpired(
-            TX1, user, merchant, address(token), AMOUNT
-        );
+        emit IArbitrumSettlementCore.PaymentExpired(TX1, user, merchant, address(token), AMOUNT);
 
         core.expire(TX1);
     }
@@ -1170,8 +1131,8 @@ contract ArbitrumSettlementCoreTest is Test {
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
         assertEq(avail + locked, deposited, "avail+locked != deposited");
-        assertEq(locked,         deposited, "entire deposit must be locked");
-        assertEq(avail,          0,         "nothing must remain available");
+        assertEq(locked, deposited, "entire deposit must be locked");
+        assertEq(avail, 0, "nothing must remain available");
     }
 
     /// @dev A duplicate txId always reverts, regardless of its value.
@@ -1193,12 +1154,9 @@ contract ArbitrumSettlementCoreTest is Test {
     }
 
     /// @dev After capture the merchant receives exactly the authorized amount.
-    function testFuzz_capture_merchantReceivesExactAmount(
-        uint96 rawDeposit,
-        uint96 rawCapture
-    ) public {
+    function testFuzz_capture_merchantReceivesExactAmount(uint96 rawDeposit, uint96 rawCapture) public {
         uint256 deposited = bound(rawDeposit, 1, type(uint96).max);
-        uint256 captured  = bound(rawCapture, 1, deposited);
+        uint256 captured = bound(rawCapture, 1, deposited);
 
         token.mint(user, deposited);
 
@@ -1216,7 +1174,7 @@ contract ArbitrumSettlementCoreTest is Test {
 
         assertEq(token.balanceOf(merchant), captured);
 
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(avail, deposited - captured);
     }
 
@@ -1231,11 +1189,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.stopPrank();
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
-        assertGe(
-            token.balanceOf(address(core)),
-            avail + locked,
-            "contract is insolvent after deposit"
-        );
+        assertGe(token.balanceOf(address(core)), avail + locked, "contract is insolvent after deposit");
     }
 
     // =========================================================================
@@ -1263,7 +1217,7 @@ contract ArbitrumSettlementCoreTest is Test {
         vm.prank(user);
         core.withdraw(address(token), AMOUNT);
 
-        (uint256 avail, ) = core.getBalance(user, address(token));
+        (uint256 avail,) = core.getBalance(user, address(token));
         assertEq(avail, 0, "avail must be zero after withdraw");
         assertEq(token.balanceOf(user), preBalance + AMOUNT, "user must recover their tokens");
     }
@@ -1338,7 +1292,7 @@ contract ArbitrumSettlementCoreTest is Test {
         bytes32[] memory ids = new bytes32[](3);
         ids[0] = TX1;
         ids[1] = invalidId; // <-- invalid ID at position 1
-        ids[2] = TX2;       // TX2 does not exist either, but revert hits here first
+        ids[2] = TX2; // TX2 does not exist either, but revert hits here first
 
         vm.expectRevert(abi.encodeWithSelector(HoldNotFound.selector, invalidId));
         core.batchExpire(ids);
@@ -1373,17 +1327,15 @@ contract ArbitrumSettlementCoreTest is Test {
         ids[1] = TX1; // duplicate
 
         // The second element fails with InvalidHoldStatus(EXPIRED), reverting everything
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.EXPIRED)
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidHoldStatus.selector, TX1, HoldStatus.EXPIRED));
         core.batchExpire(ids);
 
         // Verify rollback: TX1 is still AUTHORIZED
         assertTrue(core.getHold(TX1).status == HoldStatus.AUTHORIZED, "TX1 must still be AUTHORIZED");
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
-        assertEq(locked, AMOUNT,  "funds must remain locked");
-        assertEq(avail,  0,       "nothing must have been released");
+        assertEq(locked, AMOUNT, "funds must remain locked");
+        assertEq(avail, 0, "nothing must have been released");
     }
 
     // =========================================================================
@@ -1407,17 +1359,14 @@ contract ArbitrumSettlementCoreTest is Test {
         // Deposit reverts: contract received depositAmt - FEE, not depositAmt
         vm.expectRevert(
             abi.encodeWithSelector(
-                FeeOnTransferToken.selector,
-                address(feeToken),
-                depositAmt,
-                depositAmt - feeToken.FEE()
+                FeeOnTransferToken.selector, address(feeToken), depositAmt, depositAmt - feeToken.FEE()
             )
         );
         core.deposit(address(feeToken), depositAmt);
         vm.stopPrank();
 
         // Ledger records nothing; contract holds no feeToken funds
-        (uint256 avail, ) = core.getBalance(user, address(feeToken));
+        (uint256 avail,) = core.getBalance(user, address(feeToken));
         assertEq(avail, 0, "ledger must be zero after revert");
         assertEq(feeToken.balanceOf(address(core)), 0, "contract must hold no funds");
     }
@@ -1551,8 +1500,8 @@ contract ArbitrumSettlementCoreTest is Test {
         core.expire(TX1);
 
         (uint256 avail, uint256 locked) = core.getBalance(user, address(token));
-        assertEq(locked, 0,      "funds must not be locked");
-        assertEq(avail,  AMOUNT, "funds must be back as available");
+        assertEq(locked, 0, "funds must not be locked");
+        assertEq(avail, AMOUNT, "funds must be back as available");
     }
 
     /// @dev release has whenNotPaused, so it must revert when the contract is
@@ -1598,7 +1547,7 @@ contract ArbitrumSettlementCoreTest is Test {
 
         // Both authorize to the same merchant
         vm.prank(relayer);
-        core.authorize(TX1, user,  merchant, address(token), AMOUNT, expiresAt);
+        core.authorize(TX1, user, merchant, address(token), AMOUNT, expiresAt);
         vm.prank(relayer);
         core.authorize(TX2, user2, merchant, address(token), AMOUNT, expiresAt);
 
@@ -1610,12 +1559,12 @@ contract ArbitrumSettlementCoreTest is Test {
         assertTrue(core.getHold(TX1).status == HoldStatus.AUTHORIZED, "TX1 must still be AUTHORIZED");
         (uint256 avail1, uint256 locked1) = core.getBalance(user, address(token));
         assertEq(locked1, AMOUNT, "user funds must still be locked");
-        assertEq(avail1,  0,      "user available must be zero");
+        assertEq(avail1, 0, "user available must be zero");
 
         // user2 has nothing locked and merchant received exactly AMOUNT
         (uint256 avail2, uint256 locked2) = core.getBalance(user2, address(token));
         assertEq(locked2, 0, "user2 must have no locked funds");
-        assertEq(avail2,  0, "user2 must have no available balance");
+        assertEq(avail2, 0, "user2 must have no available balance");
         assertEq(token.balanceOf(merchant), AMOUNT, "merchant must have exactly AMOUNT");
     }
 }
@@ -1629,7 +1578,7 @@ contract SettlementInvariantTest is StdInvariant, Test {
     MockERC20 token;
     SettlementHandler handler;
 
-    address admin   = makeAddr("inv_admin");
+    address admin = makeAddr("inv_admin");
     address relayer = makeAddr("inv_relayer");
 
     function setUp() public {
@@ -1668,11 +1617,7 @@ contract SettlementInvariantTest is StdInvariant, Test {
     ///      (capture/release/expire) must decrement both atomically. A discrepancy
     ///      implies state corruption.
     function invariant_lockedEqualsAuthorizedHoldSums() public view {
-        assertEq(
-            handler.totalLocked(),
-            handler.totalAuthorizedHoldAmounts(),
-            "INV1: locked != sum of AUTHORIZED holds"
-        );
+        assertEq(handler.totalLocked(), handler.totalAuthorizedHoldAmounts(), "INV1: locked != sum of AUTHORIZED holds");
     }
 
     // -------------------------------------------------------------------------
@@ -1698,10 +1643,7 @@ contract SettlementInvariantTest is StdInvariant, Test {
         bytes32[] memory txIds = handler.getActiveTxIds();
         for (uint256 i; i < txIds.length; ++i) {
             Hold memory h = core.getHold(txIds[i]);
-            assertTrue(
-                h.status != HoldStatus.NONE,
-                "INV3: tracked txId rolled back to status NONE"
-            );
+            assertTrue(h.status != HoldStatus.NONE, "INV3: tracked txId rolled back to status NONE");
         }
     }
 

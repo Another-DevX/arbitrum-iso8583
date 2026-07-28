@@ -7,16 +7,10 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {ReentrancyGuardTransient} from "@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {
-    IERC20Metadata
-} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {
-    SafeERC20
-} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {
-    IArbitrumSettlementCore
-} from "./interfaces/IArbitrumSettlementCore.sol";
+import {IArbitrumSettlementCore} from "./interfaces/IArbitrumSettlementCore.sol";
 import {
     Hold,
     Balance,
@@ -46,9 +40,8 @@ contract ArbitrumSettlementCore is
 {
     using SafeERC20 for IERC20;
 
-
-    bytes32 public constant RELAYER_ROLE     = keccak256("RELAYER_ROLE");
-    bytes32 public constant PAUSER_ROLE      = keccak256("PAUSER_ROLE");
+    bytes32 public constant RELAYER_ROLE = keccak256("RELAYER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant TOKEN_ADMIN_ROLE = keccak256("TOKEN_ADMIN_ROLE");
 
     uint256 public constant MAX_BATCH_EXPIRE = 50;
@@ -58,8 +51,7 @@ contract ArbitrumSettlementCore is
     // -------------------------------------------------------------------------
 
     // keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.arbitrum_settlement_core")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant STORAGE_LOCATION =
-        0x3b9a8f68b0a8bfb3eae19be46abaa7e40464ff117ac368e14cbd4d1280755c00;
+    bytes32 private constant STORAGE_LOCATION = 0x3b9a8f68b0a8bfb3eae19be46abaa7e40464ff117ac368e14cbd4d1280755c00;
 
     /// @custom:storage-location erc7201:openzeppelin.storage.arbitrum_settlement_core
     struct ArbitrumSettlementCoreStorage {
@@ -96,7 +88,9 @@ contract ArbitrumSettlementCore is
     }
 
     /// @dev Only DEFAULT_ADMIN can authorize proxy upgrades.
-    function _authorizeUpgrade(address /*newImplementation*/)
+    function _authorizeUpgrade(
+        address /*newImplementation*/
+    )
         internal
         override
         onlyRole(DEFAULT_ADMIN_ROLE)
@@ -106,17 +100,11 @@ contract ArbitrumSettlementCore is
     // Token config
     // -------------------------------------------------------------------------
 
-    function configureToken(
-        address token,
-        bool allowed
-    ) external onlyRole(TOKEN_ADMIN_ROLE) {
+    function configureToken(address token, bool allowed) external onlyRole(TOKEN_ADMIN_ROLE) {
         require(token != address(0), ZeroAddress());
 
         uint8 decimals = IERC20Metadata(token).decimals();
-        _getStorage().tokenConfig[token] = TokenConfig({
-            allowed: allowed,
-            decimals: decimals
-        });
+        _getStorage().tokenConfig[token] = TokenConfig({allowed: allowed, decimals: decimals});
 
         emit TokenConfigured(token, allowed, decimals);
     }
@@ -125,10 +113,7 @@ contract ArbitrumSettlementCore is
     // Deposit / Withdraw
     // -------------------------------------------------------------------------
 
-    function deposit(
-        address token,
-        uint256 amount
-    ) external nonReentrant whenNotPaused requireTokenAllowed(token) {
+    function deposit(address token, uint256 amount) external nonReentrant whenNotPaused requireTokenAllowed(token) {
         require(amount != 0, ZeroAmount());
 
         // Fee-on-transfer guard: measure the actual balance delta and revert if
@@ -153,10 +138,7 @@ contract ArbitrumSettlementCore is
      * @param token ERC-20 token address.
      * @param amount Amount to withdraw. Must be <= available balance.
      */
-    function withdraw(
-        address token,
-        uint256 amount
-    ) external nonReentrant whenNotPaused {
+    function withdraw(address token, uint256 amount) external nonReentrant whenNotPaused {
         require(amount != 0, ZeroAmount());
 
         uint256 available = _getStorage().balances[msg.sender][token].available;
@@ -188,14 +170,13 @@ contract ArbitrumSettlementCore is
      * @param amount     Amount to lock. Must be > 0 and <= user's available balance.
      * @param expiresAt  Unix timestamp after which capture is no longer valid.
      */
-    function authorize(
-        bytes32 txId,
-        address user,
-        address merchant,
-        address token,
-        uint256 amount,
-        uint48 expiresAt
-    ) external onlyRole(RELAYER_ROLE) whenNotPaused nonReentrant requireTokenAllowed(token) {
+    function authorize(bytes32 txId, address user, address merchant, address token, uint256 amount, uint48 expiresAt)
+        external
+        onlyRole(RELAYER_ROLE)
+        whenNotPaused
+        nonReentrant
+        requireTokenAllowed(token)
+    {
         ArbitrumSettlementCoreStorage storage $ = _getStorage();
 
         require($.holds[txId].status == HoldStatus.NONE, TxIdAlreadyUsed(txId));
@@ -239,17 +220,15 @@ contract ArbitrumSettlementCore is
      *      must be introduced; this contract is not designed for that.
      * @param txId Unique identifier of the hold to capture. Must be AUTHORIZED and not expired.
      */
-    function capture(
-        bytes32 txId
-    ) external onlyRole(RELAYER_ROLE) whenNotPaused nonReentrant requireAuthorized(txId) {
+    function capture(bytes32 txId) external onlyRole(RELAYER_ROLE) whenNotPaused nonReentrant requireAuthorized(txId) {
         ArbitrumSettlementCoreStorage storage $ = _getStorage();
         Hold storage hold = $.holds[txId];
         require(block.timestamp <= hold.expiresAt, HoldExpired(txId, hold.expiresAt));
 
-        address user     = hold.user;
+        address user = hold.user;
         address merchant = hold.merchant;
-        address token    = hold.token;
-        uint256 amount   = hold.amount;
+        address token = hold.token;
+        uint256 amount = hold.amount;
 
         hold.status = HoldStatus.CAPTURED;
         $.balances[user][token].locked -= amount;
@@ -276,12 +255,12 @@ contract ArbitrumSettlementCore is
         Hold storage hold = $.holds[txId];
         require(block.timestamp <= hold.expiresAt, HoldExpired(txId, hold.expiresAt));
 
-        address user   = hold.user;
-        address token  = hold.token;
+        address user = hold.user;
+        address token = hold.token;
         uint256 amount = hold.amount;
 
         hold.status = HoldStatus.RELEASED;
-        $.balances[user][token].locked    -= amount;
+        $.balances[user][token].locked -= amount;
         $.balances[user][token].available += amount;
 
         emit PaymentReleased(txId, user, hold.merchant, token, amount);
@@ -320,10 +299,7 @@ contract ArbitrumSettlementCore is
     // Views
     // -------------------------------------------------------------------------
 
-    function getBalance(
-        address user,
-        address token
-    ) external view returns (uint256 available, uint256 locked) {
+    function getBalance(address user, address token) external view returns (uint256 available, uint256 locked) {
         Balance storage balance = _getStorage().balances[user][token];
         return (balance.available, balance.locked);
     }
@@ -332,9 +308,7 @@ contract ArbitrumSettlementCore is
         return _getStorage().holds[txId];
     }
 
-    function getTokenConfig(
-        address token
-    ) external view returns (TokenConfig memory) {
+    function getTokenConfig(address token) external view returns (TokenConfig memory) {
         return _getStorage().tokenConfig[token];
     }
 
@@ -360,10 +334,7 @@ contract ArbitrumSettlementCore is
     }
 
     modifier requireReleaserRole() {
-        if (
-            !hasRole(RELAYER_ROLE, msg.sender) &&
-            !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
-        ) {
+        if (!hasRole(RELAYER_ROLE, msg.sender) && !hasRole(DEFAULT_ADMIN_ROLE, msg.sender)) {
             _checkRole(RELAYER_ROLE);
         }
         _;
@@ -381,12 +352,12 @@ contract ArbitrumSettlementCore is
         Hold storage h = $.holds[txId];
         require(block.timestamp > h.expiresAt, HoldNotExpired(txId, h.expiresAt));
 
-        address user   = h.user;
-        address token  = h.token;
+        address user = h.user;
+        address token = h.token;
         uint256 amount = h.amount;
 
         h.status = HoldStatus.EXPIRED;
-        $.balances[user][token].locked    -= amount;
+        $.balances[user][token].locked -= amount;
         $.balances[user][token].available += amount;
 
         emit PaymentExpired(txId, user, h.merchant, token, amount);

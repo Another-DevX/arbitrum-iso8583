@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'EXPIRED_HOLD'              // capture attempted after expiresAt
   | 'HOLD_NOT_EXPIRED'          // expire called before expiresAt
   | 'UNAUTHORIZED_MERCHANT'     // merchant address not found / zero
+  | 'CARD_NOT_MAPPED'           // card token has no active address mapping
   | 'TOKEN_NOT_ALLOWED'         // token not configured on the contract
   | 'CONTRACT_PAUSED'           // contract is paused
   | 'RPC_FAILURE'               // transport / network error
@@ -57,6 +58,7 @@ const ISO_RESPONSE_CODE: Record<ErrorCode, string> = {
   EXPIRED_HOLD:              '54', // Expired card / transaction
   HOLD_NOT_EXPIRED:          '58', // Transaction not permitted
   UNAUTHORIZED_MERCHANT:     '03', // Invalid merchant
+  CARD_NOT_MAPPED:           '14', // Invalid card number/token
   TOKEN_NOT_ALLOWED:         '57', // Transaction not permitted to cardholder
   CONTRACT_PAUSED:           '91', // Issuer or switch is inoperative
   RPC_FAILURE:               '96', // System malfunction
@@ -121,8 +123,16 @@ export function classifyError(err: unknown): ClassifiedError {
     return make(SELECTOR_MAP[selector], err)
   }
 
-  // 5. Gas estimation failure
+  // 5. Mapping failures raised by the normalizer before any chain submission
   const msg = ((err as { message?: string })?.message ?? '').toLowerCase()
+  if (msg.includes('merchant ref')) {
+    return make('UNAUTHORIZED_MERCHANT', err)
+  }
+  if (msg.includes('card token')) {
+    return make('CARD_NOT_MAPPED', err)
+  }
+
+  // 6. Gas estimation failure
   if (msg.includes('gas') && (msg.includes('revert') || msg.includes('failed'))) {
     return make('GAS_ESTIMATION_FAILED', err)
   }

@@ -50,6 +50,15 @@ export interface BackendMetrics {
   isoMessagesRouted:   Record<string, number>
   isoDuplicates:       number
   errorsClassified:    Record<string, number>
+  latency: Record<string, {
+    count: number
+    avgMs: number
+    minMs: number
+    maxMs: number
+    p50: number
+    p95: number
+    p99: number
+  }>
 }
 
 export interface HealthResponse {
@@ -218,14 +227,17 @@ export const backendApi = {
     return request<PaymentLogRow[]>(`/payments?limit=${limit}&offset=${offset}`)
   },
 
-  /** Get metrics from the backend and normalize the flat response into BackendMetrics */
+  /** Get metrics and normalize counters while preserving latency summaries. */
   async getMetrics(): Promise<BackendMetrics> {
-    const raw = await request<Record<string, number>>('/metrics')
+    const raw = await request<Record<string, unknown>>('/metrics')
+    const numberValue = (key: string): number =>
+      typeof raw[key] === 'number' ? raw[key] : 0
     return {
-      isoMessagesReceived: { total: raw['iso_messages_received'] ?? 0 },
-      isoMessagesRouted:   { total: raw['iso_messages_routed']   ?? 0 },
-      isoDuplicates:       raw['iso_duplicates']    ?? 0,
-      errorsClassified:    { total: raw['error_classified']      ?? 0 },
+      isoMessagesReceived: { total: numberValue('iso_messages_received') },
+      isoMessagesRouted:   { total: numberValue('iso_messages_routed') },
+      isoDuplicates:       numberValue('iso_duplicates'),
+      errorsClassified:    { total: numberValue('error_classified') },
+      latency: (raw['latency'] ?? {}) as BackendMetrics['latency'],
     }
   },
 

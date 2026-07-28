@@ -11,6 +11,9 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --forceExit",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --runInBand --coverage --forceExit",
     "reconcile": "tsx scripts/reconcile.ts",
+    "m3:scenarios": "tsx scripts/m3-scenarios.ts",
+    "m3:demo": "tsx scripts/m3-demo.ts",
+    "m3:report": "tsx scripts/generate-report.ts",
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {

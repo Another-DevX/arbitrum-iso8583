@@ -18,7 +18,7 @@ import {MockERC20} from "../test/mocks/MockERC20.sol";
  *     -vvvv
  */
 contract DeployUSDT is Script {
-    address internal constant PROXY   = 0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72;
+    address internal constant PROXY = 0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72;
     uint256 internal constant USDT_MINT = 100_000e6; // 100 000 USDT (6 decimals)
 
     function run() external {

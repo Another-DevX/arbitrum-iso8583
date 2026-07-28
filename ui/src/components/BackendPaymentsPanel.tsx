@@ -1,6 +1,6 @@
 /**
  * BackendPaymentsPanel.tsx
- * Live view of the payment log stored in the backend SQLite DB.
+ * Live view of the payment log stored in PostgreSQL by the backend.
  * Polls every 4 seconds and shows the latest entries with on-chain links.
  */
 import { useEffect, useRef, useState } from 'react'

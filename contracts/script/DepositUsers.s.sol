@@ -23,13 +23,12 @@ import {IArbitrumSettlementCore} from "../src/interfaces/IArbitrumSettlementCore
  * No --private-key required: keys are derived from the mnemonic internally.
  */
 contract DepositUsers is Script {
-
-    uint256 internal constant N_USERS     = 4;
+    uint256 internal constant N_USERS = 4;
     uint256 internal constant DEPOSIT_AMT = 1_000e6;
 
     address internal constant PROXY = 0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72;
-    address internal constant USDC  = 0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA;
-    address internal constant USDT  = 0xC7f974b3710560D070dEc95288339EfAB683C417;
+    address internal constant USDC = 0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA;
+    address internal constant USDT = 0xC7f974b3710560D070dEc95288339EfAB683C417;
 
     string internal constant TEST_MNEMONIC =
         "bamboo scout soldier devote tooth ugly foot drive lamp upset arrange grape";
@@ -64,7 +63,7 @@ contract DepositUsers is Script {
 
         for (uint256 i = 0; i < N_USERS; i++) {
             uint256 privKey = vm.deriveKey(mnemonic, uint32(i));
-            address user    = vm.addr(privKey);
+            address user = vm.addr(privKey);
 
             console.log("\n[%d] %s", i, user);
 
@@ -80,8 +79,7 @@ contract DepositUsers is Script {
 
             vm.stopBroadcast();
 
-            console.log("[%d] final balance -- USDC: %d  USDT: %d",
-                i, _available(user, USDC), _available(user, USDT));
+            console.log("[%d] final balance -- USDC: %d  USDT: %d", i, _available(user, USDC), _available(user, USDT));
         }
 
         console.log("\n==========================================");

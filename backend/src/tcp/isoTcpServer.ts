@@ -17,7 +17,6 @@
 import net from 'node:net'
 import { config } from '../config.js'
 import { logger } from '../observability/logger.js'
-import { isoMessagesReceived } from '../observability/metrics.js'
 import { IsoFramer } from './framing.js'
 import { decodeIso8583 } from '../iso/codec.js'
 import type { RawIsoMessage } from '../iso/fields.js'
@@ -47,8 +46,6 @@ function handleConnection(socket: net.Socket): void {
 
   // ── Complete ISO 8583 message received ───────────────────────────────────
   framer.on('message', async (body: Buffer) => {
-    isoMessagesReceived.inc()
-
     const mti = body.length >= 4 ? body.subarray(0, 4).toString('ascii') : 'XXXX'
     const msgLog = connLog.child({ mti })
 
@@ -80,7 +77,7 @@ function handleConnection(socket: net.Socket): void {
     // 4. Build binary response
     let response: Buffer
 
-    if (result.status === 'approved' || result.status === 'duplicate') {
+    if (result.status === 'approved') {
       if (parsed) {
         response = buildIsoApprovedResponse(parsed)
       } else {
@@ -118,8 +115,9 @@ function handleConnection(socket: net.Socket): void {
     framer.reset()
   })
 
-  // 30-second idle timeout – close connections that stop sending
-  socket.setTimeout(30_000)
+  // Keep the socket alive longer than the 120-second receipt wait so a valid
+  // transaction is not disconnected while Arbitrum confirmations are pending.
+  socket.setTimeout(150_000)
   socket.on('timeout', () => {
     connLog.info('ISO TCP socket idle timeout – closing')
     socket.destroy()

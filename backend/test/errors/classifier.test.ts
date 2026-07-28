@@ -36,4 +36,16 @@ describe('classifyError', () => {
     expect(() => classifyError('string error')).not.toThrow()
     expect(() => classifyError(42)).not.toThrow()
   })
+
+  it('maps an unknown merchant to ISO 03', () => {
+    const result = classifyError(new Error('No address mapping found for merchant ref: UNKNOWN'))
+    expect(result.code).toBe('UNAUTHORIZED_MERCHANT')
+    expect(result.isoResponseCode).toBe('03')
+  })
+
+  it('maps an unknown card token to ISO 14', () => {
+    const result = classifyError(new Error('No address mapping found for card token: UNKNOWN'))
+    expect(result.code).toBe('CARD_NOT_MAPPED')
+    expect(result.isoResponseCode).toBe('14')
+  })
 })

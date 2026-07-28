@@ -234,17 +234,15 @@ describe('ISO TCP server – framing on persistent connection', () => {
 })
 
 describe('ISO TCP server – deduplication over TCP', () => {
-  it('returns RC=00 (idempotent approval) and calls submitter only once on duplicate', async () => {
+  it('returns RC=94 and calls submitter only once on duplicate', async () => {
     const msg = makeMsg('400001', 'RRN000400001')
     const r1  = await sendAndReceive(port, msg)
     const r2  = await sendAndReceive(port, msg)
 
-    // Both responses are 0110 with RC=00 – ISO 8583 duplicate handling is
-    // idempotent: the second response mirrors the first (already approved).
     expect(r1.mti).toBe('0110')
     expect(r1.fields['039']).toBe('00')
     expect(r2.mti).toBe('0110')
-    expect(r2.fields['039']).toBe('00')
+    expect(r2.fields['039']).toBe('94')
 
     // The critical assertion: the blockchain submitter was only called once.
     expect(mockSubmitFn).toHaveBeenCalledTimes(1)

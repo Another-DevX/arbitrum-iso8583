@@ -26,7 +26,7 @@ contract Deploy is Script {
         address deployer = msg.sender;
 
         // ── 1. Deploy tokens ────────────────────────────────────────────────
-        MockERC20 usdc = new MockERC20("USD Coin",   "USDC", 6);
+        MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
         MockERC20 usdt = new MockERC20("Tether USD", "USDT", 6);
 
         // ── 2. Deploy core contract (UUPS upgradeable) ──────────────────────

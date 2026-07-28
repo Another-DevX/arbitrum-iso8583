@@ -5,7 +5,11 @@
  */
 import { Router, type Request, type Response } from 'express'
 import { processIsoMessage } from './intake.js'
-import { getPaymentLog, listPaymentLogs } from '../db/paymentLog.js'
+import {
+  getPaymentLog,
+  listPaymentLogs,
+  type PaymentLogRow,
+} from '../db/paymentLog.js'
 import { getMetrics } from '../observability/metrics.js'
 import { logger } from '../observability/logger.js'
 import {
@@ -18,6 +22,46 @@ import {
 } from '../db/mappings.js'
 
 export const router = Router()
+
+function isoResponseCode(row: PaymentLogRow): string {
+  if (row.status === 'confirmed') return '00'
+  if (row.status === 'duplicate') return '94'
+  if (row.status === 'pending' || row.status === 'submitted') return '96'
+
+  const errorCodes: Record<string, string> = {
+    INSUFFICIENT_FUNDS: '51',
+    DUPLICATE_AUTHORIZATION: '94',
+    INVALID_CAPTURE: '58',
+    EXPIRED_HOLD: '54',
+    HOLD_NOT_EXPIRED: '58',
+    UNAUTHORIZED_MERCHANT: '03',
+    CARD_NOT_MAPPED: '14',
+    TOKEN_NOT_ALLOWED: '57',
+    CONTRACT_PAUSED: '91',
+    RPC_FAILURE: '96',
+    NONCE_CONFLICT: '96',
+    GAS_ESTIMATION_FAILED: '96',
+    HOLD_NOT_FOUND: '25',
+    UNKNOWN_CONTRACT_REVERT: '05',
+    UNKNOWN: '05',
+  }
+  return row.error_code ? errorCodes[row.error_code] ?? '05' : '05'
+}
+
+function serializePayment(row: PaymentLogRow) {
+  return {
+    txId: row.tx_id,
+    mti: row.mti,
+    action: row.action,
+    status: row.onchain_status ?? row.status,
+    isoResponseCode: isoResponseCode(row),
+    txHash: row.tx_hash ?? undefined,
+    blockNumber: row.block_number ?? undefined,
+    errorMessage: row.last_error ?? row.revert_reason ?? undefined,
+    createdAt: new Date(row.created_at * 1_000).toISOString(),
+    updatedAt: new Date(row.updated_at * 1_000).toISOString(),
+  }
+}
 
 // ── POST /iso/intake ──────────────────────────────────────────────────────────
 /**
@@ -59,14 +103,14 @@ router.get('/payments/:txId', async (req: Request, res: Response) => {
     res.status(404).json({ error: 'Payment not found', txId })
     return
   }
-  res.json(row)
+  res.json(serializePayment(row))
 })
 
 // ── GET /payments ─────────────────────────────────────────────────────────────
 router.get('/payments', async (req: Request, res: Response) => {
   const limit  = Math.min(Number(req.query['limit']  ?? 50), 200)
   const offset = Number(req.query['offset'] ?? 0)
-  res.json(await listPaymentLogs(limit, offset))
+  res.json((await listPaymentLogs(limit, offset)).map(serializePayment))
 })
 
 // ── GET /metrics ──────────────────────────────────────────────────────────────

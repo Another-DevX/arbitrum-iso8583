@@ -17,17 +17,95 @@
 import { type Address } from 'viem'
 import { config } from '../config.js'
 import { logger } from '../observability/logger.js'
-import { txSubmitted, errorClassified } from '../observability/metrics.js'
+import { txSubmitted, errorClassified, txLatency } from '../observability/metrics.js'
 import { SETTLEMENT_ABI } from './abi.js'
 import { walletClient, publicClient, account, nextNonce, resetNonce } from './wallet.js'
 import { classifyError } from '../errors/classifier.js'
 import type { ContractCallParams } from '../mapping/contractMapper.js'
 
-export interface SubmitResult { success: true;  txHash: `0x${string}`; attempts: number }
-export interface SubmitError  { success: false; classified: ReturnType<typeof classifyError>; attempts: number; retryable: boolean }
+export interface SubmitResult {
+  success: true
+  txHash: `0x${string}`
+  attempts: number
+  nonce: number
+  estimatedGas: bigint
+  gasEstimateMs: number
+  submitMs: number
+}
+export interface SubmitError {
+  success: false
+  classified: ReturnType<typeof classifyError>
+  attempts: number
+  retryable: boolean
+  gasEstimateMs?: number
+  submitMs?: number
+}
 export type SubmitOutcome = SubmitResult | SubmitError
 
 const CONTRACT = config.CONTRACT_ADDRESS as Address
+
+async function estimateCallGas(params: ContractCallParams): Promise<bigint> {
+  if (params.functionName === 'authorize') {
+    return publicClient.estimateContractGas({
+      address: CONTRACT,
+      abi: SETTLEMENT_ABI,
+      functionName: 'authorize',
+      args: params.args,
+      account,
+    })
+  }
+  if (params.functionName === 'capture') {
+    return publicClient.estimateContractGas({
+      address: CONTRACT,
+      abi: SETTLEMENT_ABI,
+      functionName: 'capture',
+      args: params.args,
+      account,
+    })
+  }
+  return publicClient.estimateContractGas({
+    address: CONTRACT,
+    abi: SETTLEMENT_ABI,
+    functionName: 'release',
+    args: params.args,
+    account,
+  })
+}
+
+async function writeCall(
+  params: ContractCallParams,
+  nonce: number,
+  gas: bigint,
+): Promise<`0x${string}`> {
+  if (params.functionName === 'authorize') {
+    return walletClient.writeContract({
+      address: CONTRACT,
+      abi: SETTLEMENT_ABI,
+      functionName: 'authorize',
+      args: params.args,
+      nonce,
+      gas,
+    })
+  }
+  if (params.functionName === 'capture') {
+    return walletClient.writeContract({
+      address: CONTRACT,
+      abi: SETTLEMENT_ABI,
+      functionName: 'capture',
+      args: params.args,
+      nonce,
+      gas,
+    })
+  }
+  return walletClient.writeContract({
+    address: CONTRACT,
+    abi: SETTLEMENT_ABI,
+    functionName: 'release',
+    args: params.args,
+    nonce,
+    gas,
+  })
+}
 
 export async function submitContractCall(
   params: ContractCallParams,
@@ -35,47 +113,57 @@ export async function submitContractCall(
   attempt = 1,
 ): Promise<SubmitOutcome> {
   const log = logger.child({ txId, action: params.functionName, attempt })
+  let completedGasEstimateMs: number | undefined
+  let submitStartedAt: number | undefined
 
   try {
     // 1. Gas estimation – detects reverts before spending real gas
     let gas: bigint
+    const gasStartedAt = performance.now()
     try {
-      const raw = await publicClient.estimateContractGas({
-        address: CONTRACT,
-        abi: SETTLEMENT_ABI,
-        functionName: params.functionName as any,
-        args: params.args as any,
-        account,
-      })
+      const raw = await estimateCallGas(params)
       gas = raw * 12n / 10n  // +20% buffer
       const gasLimit = BigInt(config.GAS_LIMIT)
       if (gas > gasLimit) gas = gasLimit
     } catch (err) {
+      const gasEstimateMs = Math.round(performance.now() - gasStartedAt)
+      txLatency.observe({ phase: 'gas_estimate' }, gasEstimateMs)
       const classified = classifyError(err)
       errorClassified.inc()
       log.warn({ classified }, 'Gas estimation failed – the tx would revert')
-      return { success: false, classified, attempts: attempt, retryable: false }
+      return { success: false, classified, attempts: attempt, retryable: false, gasEstimateMs }
     }
+    const gasEstimateMs = Math.round(performance.now() - gasStartedAt)
+    completedGasEstimateMs = gasEstimateMs
+    txLatency.observe({ phase: 'gas_estimate' }, gasEstimateMs)
 
     // 2. Local nonce
     const nonce = await nextNonce()
     log.info({ nonce, gas: gas.toString() }, 'Sending transaction')
 
     // 3. Send
-    const txHash = await walletClient.writeContract({
-      address: CONTRACT,
-      abi: SETTLEMENT_ABI,
-      functionName: params.functionName as any,
-      args: params.args as any,
-      nonce,
-      gas,
-    })
+    submitStartedAt = performance.now()
+    const txHash = await writeCall(params, nonce, gas)
+    const submitMs = Math.round(performance.now() - submitStartedAt)
+    txLatency.observe({ phase: 'tx_submit' }, submitMs)
 
     txSubmitted.inc()
     log.info({ txHash }, 'Transaction sent')
-    return { success: true, txHash, attempts: attempt }
+    return {
+      success: true,
+      txHash,
+      attempts: attempt,
+      nonce,
+      estimatedGas: gas,
+      gasEstimateMs,
+      submitMs,
+    }
 
   } catch (err) {
+    const submitMs = submitStartedAt === undefined
+      ? undefined
+      : Math.round(performance.now() - submitStartedAt)
+    if (submitMs !== undefined) txLatency.observe({ phase: 'tx_submit' }, submitMs)
     const classified = classifyError(err)
     errorClassified.inc()
 
@@ -92,6 +180,8 @@ export async function submitContractCall(
       classified,
       attempts: attempt,
       retryable: classified.code === 'RPC_FAILURE' || classified.code === 'NONCE_CONFLICT',
+      gasEstimateMs: completedGasEstimateMs,
+      submitMs,
     }
   }
 }

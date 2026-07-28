@@ -1,69 +1,56 @@
-# contracts
+# ArbitrumSettlementCore contracts
 
-Foundry project containing the `ArbitrumSettlementCore` contract stack.
+Foundry project for the UUPS-upgradeable settlement contract.
 
-## Structure
+## Dependencies
 
-```
-src/
-  ArbitrumSettlementCore.sol   # Core settlement logic (UUPS upgradeable)
-  interfaces/
-    IArbitrumSettlementCore.sol
-    ISettlementTypes.sol
-test/
-  ArbitrumSettlementCore.t.sol # 82 tests (unit, fuzz, invariant)
-script/
-  Counter.s.sol                # Deploy script
-broadcast/
-  Deploy.s.sol/421614/         # Arbitrum Sepolia deployment artifacts
+Dependencies are installed locally under ignored `contracts/lib/`:
+
+```bash
+forge install foundry-rs/forge-std --no-git
+forge install OpenZeppelin/openzeppelin-contracts --no-git
+forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-git
 ```
 
-## Commands
+## Verification
 
-```shell
-# Build
-forge build
-
-# Run all tests
+```bash
+forge fmt --check
+forge build --sizes
 forge test -vv
-
-# Gas snapshot
 forge snapshot
-
-# Deploy to Arbitrum Sepolia
-forge script script/Counter.s.sol --rpc-url arbitrum_sepolia --broadcast
 ```
 
-## Test results (M1)
+The suite includes unit, fuzz, invariant, reentrancy, solvency and UUPS
+state-preservation tests.
 
-```
-82 tests passed, 0 failed
-  78 unit / fuzz tests
-   4 invariant tests
-```
+## Deployment
 
-### Anvil
+Local or testnet deployment uses `script/Deploy.s.sol`:
 
-```shell
-$ anvil
+```bash
+forge script script/Deploy.s.sol --rpc-url "$RPC_URL" --private-key "$DEPLOYER_PK" --broadcast
 ```
 
-### Deploy
+For a controlled M3 deployment with separate role holders:
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+```bash
+export ADMIN_ADDRESS=0x...
+export PAUSER_ADDRESS=0x...
+export TOKEN_ADMIN_ADDRESS=0x...
+export RELAYER_ADDRESS=0x...
+export ARBITRUM_SEPOLIA_RPC_URL=https://...
+export ARBISCAN_API_KEY=...
+
+forge script script/DeployControlled.s.sol \
+  --rpc-url arbitrum-sepolia \
+  --private-key "$DEPLOYER_PK" \
+  --broadcast
 ```
 
-### Cast
+The broadcaster is only a bootstrap administrator. The controlled script
+configures both mock tokens, grants the final role holders, and removes
+bootstrap roles that belong to a different address.
 
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Arbitrum Sepolia broadcast evidence is stored under
+`broadcast/Deploy.s.sol/421614/`.

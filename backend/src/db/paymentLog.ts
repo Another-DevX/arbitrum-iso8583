@@ -6,7 +6,7 @@
  */
 import { eq, desc, sql, and, inArray } from 'drizzle-orm'
 import { getDb } from './client.js'
-import { paymentLog } from './schema.js'
+import { paymentLog, isoMessages, chainOperations, onchainEvents } from './schema.js'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,6 +36,53 @@ export interface CreatePaymentLogParams {
   currencyAlpha:    string
   action:           string
   isoRaw:           unknown
+}
+
+export interface InsertIsoMessageParams {
+  txId: string
+  direction: 'request' | 'response'
+  action: string
+  mti: string
+  fieldsJson: unknown
+  isoRaw: unknown
+  responseCode?: string
+}
+
+export interface InsertChainOperationParams {
+  txId: string
+  action: string
+  attempt?: number
+  nonce?: number
+  status?: 'pending' | 'submitted' | 'confirmed' | 'failed'
+}
+
+export interface ChainOperationPatch {
+  status?: 'pending' | 'submitted' | 'confirmed' | 'failed'
+  attempt?: number
+  nonce?: number
+  txHash?: string
+  blockNumber?: number
+  revertReason?: string
+  estimatedGas?: bigint
+  gasUsed?: bigint
+  effectiveGasPrice?: bigint
+  feeWei?: bigint
+  gasEstimateMs?: number
+  submitMs?: number
+  confirmationMs?: number
+}
+
+export interface InsertOnchainEventParams {
+  txId: string
+  eventName: string
+  blockHash: string
+  blockNumber: number
+  txHash: string
+  logIndex: number
+  amount?: bigint
+  tokenAddress?: string
+  userAddress?: string
+  merchantAddress?: string
 }
 
 // ── payment_log ───────────────────────────────────────────────────────────────
@@ -111,9 +158,15 @@ export async function isDuplicate(txId: string): Promise<boolean> {
  */
 export async function isDuplicateAction(txId: string, action: string): Promise<boolean> {
   const rows = await getDb()
-    .select({ id: paymentLog.id })
-    .from(paymentLog)
-    .where(and(eq(paymentLog.tx_id, txId), eq(paymentLog.action, action)))
+    .select({ id: chainOperations.id })
+    .from(chainOperations)
+    .where(
+      and(
+        eq(chainOperations.tx_id, txId),
+        eq(chainOperations.action, action),
+        inArray(chainOperations.status, ['pending', 'submitted', 'confirmed']),
+      ),
+    )
     .limit(1)
   return rows.length > 0
 }
@@ -143,4 +196,85 @@ export async function getPaymentLogByStan(
     .orderBy(desc(paymentLog.created_at))
     .limit(1)
   return rows[0] ?? null
+}
+
+// ── append-only M3 audit log ─────────────────────────────────────────────────
+
+export async function insertIsoMessage(params: InsertIsoMessageParams): Promise<void> {
+  await getDb().insert(isoMessages).values({
+    tx_id:         params.txId,
+    direction:     params.direction,
+    action:        params.action,
+    mti:           params.mti,
+    fields_json:   JSON.stringify(params.fieldsJson),
+    iso_raw:       JSON.stringify(params.isoRaw),
+    response_code: params.responseCode ?? null,
+  })
+}
+
+export async function insertChainOperation(params: InsertChainOperationParams): Promise<number> {
+  const rows = await getDb()
+    .insert(chainOperations)
+    .values({
+      tx_id:   params.txId,
+      action:  params.action,
+      attempt: params.attempt ?? 1,
+      nonce:   params.nonce ?? null,
+      status:  params.status ?? 'pending',
+    })
+    .returning({ id: chainOperations.id })
+  return rows[0].id
+}
+
+export async function updateChainOperation(
+  id: number,
+  patch: ChainOperationPatch,
+): Promise<void> {
+  await getDb()
+    .update(chainOperations)
+    .set({
+      updated_at:          sql`extract(epoch from now())::integer`,
+      ...(patch.status            !== undefined && { status: patch.status }),
+      ...(patch.attempt           !== undefined && { attempt: patch.attempt }),
+      ...(patch.nonce             !== undefined && { nonce: patch.nonce }),
+      ...(patch.txHash            !== undefined && { tx_hash: patch.txHash }),
+      ...(patch.blockNumber       !== undefined && { block_number: patch.blockNumber }),
+      ...(patch.revertReason      !== undefined && { revert_reason: patch.revertReason }),
+      ...(patch.estimatedGas      !== undefined && { estimated_gas: patch.estimatedGas.toString() }),
+      ...(patch.gasUsed           !== undefined && { gas_used: patch.gasUsed.toString() }),
+      ...(patch.effectiveGasPrice !== undefined && { effective_gas_price: patch.effectiveGasPrice.toString() }),
+      ...(patch.feeWei            !== undefined && { fee_wei: patch.feeWei.toString() }),
+      ...(patch.gasEstimateMs     !== undefined && { gas_estimate_ms: patch.gasEstimateMs }),
+      ...(patch.submitMs          !== undefined && { submit_ms: patch.submitMs }),
+      ...(patch.confirmationMs    !== undefined && { confirmation_ms: patch.confirmationMs }),
+    })
+    .where(eq(chainOperations.id, id))
+}
+
+export async function insertOnchainEvent(params: InsertOnchainEventParams): Promise<void> {
+  await getDb()
+    .insert(onchainEvents)
+    .values({
+      tx_id:            params.txId,
+      event_name:       params.eventName,
+      block_hash:       params.blockHash,
+      block_number:     params.blockNumber,
+      tx_hash:          params.txHash,
+      log_index:        params.logIndex,
+      amount:           params.amount?.toString() ?? null,
+      token_address:    params.tokenAddress ?? null,
+      user_address:     params.userAddress ?? null,
+      merchant_address: params.merchantAddress ?? null,
+    })
+    .onConflictDoNothing()
+}
+
+export async function listChainOperations(txId?: string) {
+  const query = getDb().select().from(chainOperations)
+  return txId ? query.where(eq(chainOperations.tx_id, txId)) : query
+}
+
+export async function listIsoMessages(txId?: string) {
+  const query = getDb().select().from(isoMessages)
+  return txId ? query.where(eq(isoMessages.tx_id, txId)) : query
 }

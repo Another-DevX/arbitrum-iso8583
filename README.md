@@ -1,69 +1,113 @@
-# Arbitrum Settlement Core
+# Arbitrum ISO 8583 Settlement PoC
 
-Experimental ISO 8583 mapping for onchain card authorization and settlement on Arbitrum.
+ISO 8583 middleware and an Arbitrum settlement contract for the payment
+lifecycle:
 
----
+```text
+ISO 0100 authorize → onchain authorize → ISO 0200 capture → onchain capture
+```
 
-## Milestone 1 — Contract stack deployment ✅
+The repository contains:
 
-This repository contains the M1 implementation of the settlement core contract stack.
+- `contracts/`: UUPS-upgradeable Solidity settlement contract and Foundry tests.
+- `backend/`: binary TCP/HTTP ISO 8583 middleware, PostgreSQL audit log and relayer.
+- `ui/`: React operator dashboard and POS simulator.
+- `backend/scripts/m3-demo.ts`: reproducible M3 scenario, accounting, gas and reconciliation runner.
 
-The milestone delivered a UUPS-upgradeable settlement contract deployed and validated on **Arbitrum Sepolia**, together with a React/TypeScript UI for manual and automated testing.
-
-### What was built
-
-- **`ArbitrumSettlementCore`** — UUPS upgradeable settlement contract implementing the full authorize → capture / release / expire lifecycle.
-- **Role-based access control** — `DEFAULT_ADMIN_ROLE`, `PAUSER_ROLE`, `TOKEN_ADMIN_ROLE`, `RELAYER_ROLE`.
-- **ERC-20 token whitelisting** — configurable per-token with decimals handling.
-- **Batch operations** — `batchExpire` for gas-efficient bulk settlement.
-- **Test suite** — 82 / 82 tests passing (78 unit + fuzz, 4 invariant).
-- **Dashboard UI** — operations panel with deposit, authorize, capture, release, expire, batch/burst flows, and a live benchmark tab.
-
-### Token coverage
-
-The proposal specified **USDC and USDT** support. Both are now live on Arbitrum Sepolia — mock USDC was part of the initial deploy; mock USDT was added in a follow-up transaction and is configured and active in the contract.
-
----
-
-## Deployed Contracts
+## Arbitrum Sepolia deployment
 
 | Component | Address |
 |---|---|
-| Network | Arbitrum Sepolia (Chain ID `421614`) |
-| Proxy *(use this for integrations)* | [`0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72`](https://sepolia.arbiscan.io/address/0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72) |
-| Implementation | [`0x655d759764122E84B8cA0B156eE320B2D9Bd50B3`](https://sepolia.arbiscan.io/address/0x655d759764122E84B8cA0B156eE320B2D9Bd50B3) |
-| Mock USDC | [`0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA`](https://sepolia.arbiscan.io/address/0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA) |
-| Mock USDT | [`0xC7f974b3710560D070dEc95288339EfAB683C417`](https://sepolia.arbiscan.io/address/0xC7f974b3710560D070dEc95288339EfAB683C417) |
-| Operator / Admin | `0x0C015C85340793854e7528943746447713e2C326` |
+| Network | Arbitrum Sepolia (`421614`) |
+| Settlement proxy | `0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72` |
+| Implementation | `0x655d759764122E84B8cA0B156eE320B2D9Bd50B3` |
+| Mock USDC | `0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA` |
+| Mock USDT | `0xC7f974b3710560D070dEc95288339EfAB683C417` |
 
----
+These are testnet-only mock assets.
 
-## Core Flows
+## Local development
 
-| Flow | Description |
-|---|---|
-| `deposit` | User deposits whitelisted ERC-20 into the settlement pool |
-| `withdraw` | User withdraws available balance |
-| `authorize` | Relayer creates a hold for a card authorization |
-| `capture` | Relayer settles the hold to the merchant |
-| `release` | Relayer cancels the hold and returns funds to the user |
-| `expire` | Anyone expires a past-deadline hold |
-| `batchExpire` | Bulk expiry of multiple holds in a single tx |
-| `pause / unpause` | Circuit-breaker controlled by `PAUSER_ROLE` |
+Prerequisites: Docker Compose and a testnet relayer key holding
+`RELAYER_ROLE`. Real values must be kept in an ignored `backend/.env` or
+exported into the shell; the repository only contains
+`backend/.env.example`.
 
----
+```bash
+cp backend/.env.example backend/.env
+# Edit backend/.env and set RELAYER_PRIVATE_KEY.
+./start.sh
+```
 
-## M2 Backlog (next)
+The stack exposes:
 
-- Multi-relayer testing with distinct signing keys
-- Gas benchmarks vs. baseline for batch settlement paths
-- Event indexing layer (The Graph subgraph or custom indexer)
+- UI: `http://localhost:5173`
+- HTTP API: `http://localhost:3100`
+- ISO 8583 TCP: `localhost:5000`
+- PostgreSQL: `localhost:5432`
 
----
+Docker Compose is the reproducible development environment. Arbitrum Sepolia
+remains the chain; it does not deploy a replacement Anvil contract.
 
-## Reports & Source
+## Railway staging
 
-- Full M1 technical report: [`TECHNICAL_MILESTONE_REPORT.md`](./TECHNICAL_MILESTONE_REPORT.md)
-- Contract source: [`contracts/src/ArbitrumSettlementCore.sol`](./contracts/src/ArbitrumSettlementCore.sol)
-- Test suite: [`contracts/test/ArbitrumSettlementCore.t.sol`](./contracts/test/ArbitrumSettlementCore.t.sol)
-- UI: [`ui/`](./ui)
+Railway hosts the staging backend and PostgreSQL service. Configure at least:
+
+```text
+RELAYER_PRIVATE_KEY
+DATABASE_URL
+RPC_URL
+CONTRACT_ADDRESS
+ALLOWED_TOKENS
+CORS_ORIGIN
+ENABLE_POS_WS_BRIDGE
+```
+
+Do not commit Railway values or role-holder keys. `RPC_URL` accepts multiple
+comma-separated endpoints.
+
+## M3 execution
+
+Run with a funded test environment. The expiry scenario requires the backend to
+use `HOLD_TTL_SECONDS<=30`; local Compose defaults to three seconds.
+
+```bash
+cd backend
+npm ci
+npm run m3:scenarios
+npm run reconcile
+npm run m3:demo
+npm run m3:report
+```
+
+`m3:demo` executes the six binary TCP scenarios, exports accounting snapshots,
+records gas and fees, reconciles four evidence planes, and generates
+`TECHNICAL_MILESTONE_REPORT_3.md`.
+
+## Verification
+
+```bash
+cd backend
+npm ci
+npm run build
+npm test
+
+cd ../ui
+npm ci
+npm run build
+
+cd ../contracts
+forge install foundry-rs/forge-std --no-git
+forge install OpenZeppelin/openzeppelin-contracts --no-git
+forge install OpenZeppelin/openzeppelin-contracts-upgradeable --no-git
+forge test -vv
+```
+
+CI repeats these checks with a disposable PostgreSQL 16 service.
+
+## Reports
+
+- [M1 contract report](./TECHNICAL_MILESTONE_REPORT_1.md)
+- [M2 middleware report](./TECHNICAL_MILESTONE_REPORT_2.md)
+- [M3 PoC technical report](./TECHNICAL_MILESTONE_REPORT_3.md)
+- [M3 internal security review](./SECURITY_REVIEW_M3.md)

@@ -53,6 +53,9 @@ export async function closeDb(): Promise<void> {
 export async function _resetDbForTests(): Promise<void> {
   const db = getDb()
   // Delete in dependency order (no FK constraints, but explicit is safer)
+  await db.delete(schema.onchainEvents)
+  await db.delete(schema.chainOperations)
+  await db.delete(schema.isoMessages)
   await db.delete(schema.reconciliationRun)
   await db.delete(schema.paymentLog)
   await db.delete(schema.cardMapping)
