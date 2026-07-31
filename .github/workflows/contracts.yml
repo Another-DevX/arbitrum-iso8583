@@ -94,7 +94,10 @@ jobs:
       - name: Run Slither and retain triaged findings
         run: |
           mkdir -p data
-          slither . --config-file slither.config.json --json data/slither-report.json || test -s data/slither-report.json
+          slither_status=0
+          slither . --config-file slither.config.json --json "$RUNNER_TEMP/slither-report.json" || slither_status=$?
+          cp "$RUNNER_TEMP/slither-report.json" data/slither-report.json
+          exit "$slither_status"
       - uses: actions/upload-artifact@v4
         with:
           name: slither-report

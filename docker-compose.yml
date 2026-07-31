@@ -24,7 +24,7 @@ services:
         condition: service_healthy
     ports:
       - "3100:3100"
-      - "5000:5000"
+      - "5001:5000"
     env_file:
       - path: ./backend/.env
         required: false
@@ -34,9 +34,7 @@ services:
       TCP_PORT: "5000"
       CORS_ORIGIN: http://localhost:5173
       ENABLE_POS_WS_BRIDGE: "true"
-      HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-3}
-      RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY:-}
-      RPC_URL: ${RPC_URL:-https://sepolia-rollup.arbitrum.io/rpc}
+      HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-15}
     healthcheck:
       test:
         [

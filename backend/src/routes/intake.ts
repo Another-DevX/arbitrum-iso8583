@@ -127,13 +127,12 @@ async function persistReceipt(
  * failures are allowed to reach the HTTP/TCP boundary as system failures.
  */
 export async function processIsoMessage(rawInput: unknown): Promise<IntakeResponse> {
-  const lifecycleStartedAt = performance.now()
   const parseStartedAt = performance.now()
   let parsed: ParsedIsoFields
   try {
     parsed = parseIsoMessage(rawInput)
   } catch (err) {
-    txLatency.observe({ phase: 'parse' }, performance.now() - parseStartedAt)
+    txLatency.observe({ phase: 'parse', action: 'parse_error' }, performance.now() - parseStartedAt)
     logger.warn({ err }, 'ISO parse error')
     const rawMti =
       rawInput &&
@@ -165,14 +164,14 @@ export async function processIsoMessage(rawInput: unknown): Promise<IntakeRespon
       isoRaw: response,
       responseCode: '30',
     })
-    txLatency.observe({ phase: 'total_iso' }, performance.now() - lifecycleStartedAt)
     return response
   }
-  txLatency.observe({ phase: 'parse' }, performance.now() - parseStartedAt)
+  const parseMs = performance.now() - parseStartedAt
 
   isoMessagesReceived.inc({ mti: parsed.mti })
   const log = logger.child({ mti: parsed.mti, stan: parsed.stan, rrn: parsed.rrn })
   const routing = routeIsoMessage(parsed)
+  txLatency.observe({ phase: 'parse', action: routing.action }, parseMs)
   isoMessagesRouted.inc({ action: routing.action })
   log.info({ action: routing.action }, 'ISO message routed')
 
@@ -208,7 +207,6 @@ export async function processIsoMessage(rawInput: unknown): Promise<IntakeRespon
       isoRaw: response,
       responseCode: response.isoResponseCode,
     })
-    txLatency.observe({ phase: 'total_iso' }, performance.now() - lifecycleStartedAt)
     return response
   }
 
@@ -269,9 +267,9 @@ export async function processIsoMessage(rawInput: unknown): Promise<IntakeRespon
     const lookupStartedAt = performance.now()
     try {
       payment = await normalize(parsed, txId)
-      txLatency.observe({ phase: 'db_lookup' }, performance.now() - lookupStartedAt)
+      txLatency.observe({ phase: 'db_lookup', action: routing.action }, performance.now() - lookupStartedAt)
     } catch (err) {
-      txLatency.observe({ phase: 'db_lookup' }, performance.now() - lookupStartedAt)
+      txLatency.observe({ phase: 'db_lookup', action: routing.action }, performance.now() - lookupStartedAt)
       const classified = classifyError(err)
       errorClassified.inc({ code: classified.code })
       if (!(await getPaymentLog(txId))) {

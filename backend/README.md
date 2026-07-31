@@ -36,6 +36,11 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/middleware
 `RPC_URL` can contain comma-separated endpoints. PostgreSQL is the only
 supported database; `DB_PATH`/SQLite are not used.
 
+`ADMIN_ADDRESS`, `PAUSER_ADDRESS`, `TOKEN_ADMIN_ADDRESS` and
+`RELAYER_ADDRESS` declare the expected public role holders checked by the M3
+runner. In the single-operator PoC they default to the address derived from the
+relayer key.
+
 ## Commands
 
 ```bash
@@ -47,6 +52,7 @@ npm start
 npm run m3:scenarios
 npm run reconcile
 npm run m3:demo
+npm run m3:gas
 npm run m3:report
 ```
 
@@ -60,12 +66,17 @@ policy when the `backend/` directory is selected as the Railway service root.
 
 - `POST /iso/intake`
 - `GET /payments` and `GET /payments/:txId`
-- `GET /metrics`
+- `GET /metrics` (`?since=<epoch-ms>` isolates latency to a demo window)
 - `GET /health`
 - `GET|PUT|DELETE /admin/cards`
 - `GET|PUT|DELETE /admin/merchants`
 - Raw ISO 8583 TCP on `TCP_PORT`
 - Development POS WebSocket bridge on `/ws/pos`
+
+Latency output separates internal phases from POS-facing TCP response time.
+`latencyByOutcome` groups complete responses into successful authorization,
+successful capture, decline and duplicate categories; the M3 report does not
+combine these different paths into a single aggregate request total.
 
 ## Supported messages
 

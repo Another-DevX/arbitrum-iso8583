@@ -50,6 +50,16 @@ const SELECTOR_MAP: Record<string, ErrorCode> = {
   '0xbb1cb70b': 'UNKNOWN_CONTRACT_REVERT',     // BatchTooLarge(uint256,uint256)
 }
 
+const ERROR_NAME_MAP: Record<string, ErrorCode> = {
+  InsufficientAvailableBalance: 'INSUFFICIENT_FUNDS',
+  TxIdAlreadyUsed: 'DUPLICATE_AUTHORIZATION',
+  InvalidHoldStatus: 'INVALID_CAPTURE',
+  HoldExpired: 'EXPIRED_HOLD',
+  HoldNotExpired: 'HOLD_NOT_EXPIRED',
+  HoldNotFound: 'HOLD_NOT_FOUND',
+  TokenNotAllowed: 'TOKEN_NOT_ALLOWED',
+}
+
 // ── ISO 8583 response code mapping ───────────────────────────────────────────
 const ISO_RESPONSE_CODE: Record<ErrorCode, string> = {
   INSUFFICIENT_FUNDS:        '51', // Insufficient funds
@@ -71,33 +81,82 @@ const ISO_RESPONSE_CODE: Record<ErrorCode, string> = {
 
 // ── Classifier ────────────────────────────────────────────────────────────────
 
-function extractSelector(err: unknown): string | null {
-  if (!err || typeof err !== 'object') return null
-  const msg: string =
-    (err as { shortMessage?: string; message?: string }).shortMessage ??
-    (err as { message?: string }).message ??
-    ''
-  const match = msg.match(/0x[0-9a-fA-F]{8}/)
-  return match ? match[0].toLowerCase() : null
+interface ErrorLike {
+  cause?: unknown
+  code?: number
+  name?: string
+  errorName?: string
+  raw?: string
+  data?: string
+  shortMessage?: string
+  message?: string
+  details?: string
+  metaMessages?: unknown
+}
+
+/**
+ * Viem wraps decoded contract reverts in two or more `cause` levels. Walking
+ * only the top-level message loses `errorName` and raw revert data, turning
+ * expected payment declines into the generic ISO 96 response.
+ */
+function errorChain(err: unknown): ErrorLike[] {
+  const chain: ErrorLike[] = []
+  const seen = new Set<object>()
+  let current = err
+
+  for (let depth = 0; depth < 12 && current && typeof current === 'object'; depth += 1) {
+    if (seen.has(current)) break
+    seen.add(current)
+    const item = current as ErrorLike
+    chain.push(item)
+    current = item.cause
+  }
+  return chain
+}
+
+function errorText(err: unknown): string {
+  return errorChain(err)
+    .flatMap((item) => [
+      item.shortMessage,
+      item.message,
+      item.details,
+      ...(Array.isArray(item.metaMessages) ? item.metaMessages : []),
+    ])
+    .filter((value): value is string => typeof value === 'string')
+    .join('\n')
+}
+
+function extractContractError(err: unknown): ErrorCode | null {
+  for (const item of errorChain(err)) {
+    if (item.errorName && ERROR_NAME_MAP[item.errorName]) {
+      return ERROR_NAME_MAP[item.errorName]
+    }
+
+    const candidates = [item.raw, item.data, item.shortMessage, item.message, item.details]
+    for (const value of candidates) {
+      if (typeof value !== 'string') continue
+      const selector = value.match(/0x[0-9a-fA-F]{8}/)?.[0].toLowerCase()
+      if (selector && SELECTOR_MAP[selector]) return SELECTOR_MAP[selector]
+    }
+  }
+  return null
 }
 
 function isRpcError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const e = err as { code?: number; name?: string; message?: string }
-  if (e.name === 'TransportHttpError' || e.name === 'FetchError') return true
-  if (typeof e.code === 'number' && (e.code === -32000 || e.code >= 500)) return true
-  return /network|timeout|ECONNREFUSED|ETIMEDOUT/i.test(e.message ?? '')
+  for (const item of errorChain(err)) {
+    if (item.name === 'TransportHttpError' || item.name === 'FetchError') return true
+    if (typeof item.code === 'number' && item.code >= 500) return true
+  }
+  return /network|timeout|ECONNREFUSED|ETIMEDOUT/i.test(errorText(err))
 }
 
 function isNonceError(err: unknown): boolean {
-  const msg: string =
-    ((err as { message?: string })?.message ?? '').toLowerCase()
+  const msg = errorText(err).toLowerCase()
   return msg.includes('nonce too low') || msg.includes('already known')
 }
 
 function isPausedError(err: unknown): boolean {
-  const msg: string =
-    ((err as { message?: string })?.message ?? '').toLowerCase()
+  const msg = errorText(err).toLowerCase()
   return msg.includes('enforced pause') || msg.includes('paused')
 }
 
@@ -107,24 +166,21 @@ export function classifyError(err: unknown): ClassifiedError {
     return make('NONCE_CONFLICT', err)
   }
 
-  // 2. RPC / network
-  if (isRpcError(err)) {
-    return make('RPC_FAILURE', err)
-  }
-
-  // 3. Contract paused
+  // 2. Contract paused
   if (isPausedError(err)) {
     return make('CONTRACT_PAUSED', err)
   }
 
-  // 4. Solidity custom error selector
-  const selector = extractSelector(err)
-  if (selector && SELECTOR_MAP[selector]) {
-    return make(SELECTOR_MAP[selector], err)
+  // 3. Decoded Solidity custom error name or selector. This must run before
+  // RPC classification because providers often attach JSON-RPC codes to a
+  // perfectly valid contract revert.
+  const contractError = extractContractError(err)
+  if (contractError) {
+    return make(contractError, err)
   }
 
-  // 5. Mapping failures raised by the normalizer before any chain submission
-  const msg = ((err as { message?: string })?.message ?? '').toLowerCase()
+  // 4. Mapping failures raised by the normalizer before any chain submission
+  const msg = errorText(err).toLowerCase()
   if (msg.includes('merchant ref')) {
     return make('UNAUTHORIZED_MERCHANT', err)
   }
@@ -132,7 +188,12 @@ export function classifyError(err: unknown): ClassifiedError {
     return make('CARD_NOT_MAPPED', err)
   }
 
-  // 6. Gas estimation failure
+  // 5. RPC / network
+  if (isRpcError(err)) {
+    return make('RPC_FAILURE', err)
+  }
+
+  // 6. Undecoded gas estimation failure
   if (msg.includes('gas') && (msg.includes('revert') || msg.includes('failed'))) {
     return make('GAS_ESTIMATION_FAILED', err)
   }

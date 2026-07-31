@@ -114,8 +114,10 @@ router.get('/payments', async (req: Request, res: Response) => {
 })
 
 // ── GET /metrics ──────────────────────────────────────────────────────────────
-router.get('/metrics', (_req: Request, res: Response) => {
-  res.json(getMetrics())
+router.get('/metrics', (req: Request, res: Response) => {
+  const parsedSince = Number(req.query['since'] ?? 0)
+  const sinceMs = Number.isFinite(parsedSince) && parsedSince >= 0 ? parsedSince : 0
+  res.json(getMetrics(sinceMs))
 })
 
 // ── GET /health ───────────────────────────────────────────────────────────────

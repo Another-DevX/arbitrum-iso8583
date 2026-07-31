@@ -13,6 +13,7 @@
     "reconcile": "tsx scripts/reconcile.ts",
     "m3:scenarios": "tsx scripts/m3-scenarios.ts",
     "m3:demo": "tsx scripts/m3-demo.ts",
+    "m3:gas": "tsx scripts/generate-foundry-gas-report.ts",
     "m3:report": "tsx scripts/generate-report.ts",
     "lint": "eslint src --ext .ts"
   },

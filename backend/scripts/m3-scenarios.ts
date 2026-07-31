@@ -96,6 +96,11 @@ export interface EnvironmentValidation {
   contractCodePresent: boolean
   relayerAddress: string
   relayerRole: boolean
+  roles: Record<'admin' | 'pauser' | 'tokenAdmin' | 'relayer', {
+    address: string
+    assigned: boolean
+  }>
+  relayerMatchesConfiguredAddress: boolean
   paused: boolean
   tokens: Array<{ address: string; allowed: boolean; decimals: number }>
   cardMappings: number
@@ -183,9 +188,24 @@ function assert(condition: unknown, message: string): asserts condition {
 
 async function validateEnvironment(token: Address): Promise<EnvironmentValidation> {
   const contract = config.CONTRACT_ADDRESS as Address
-  const [chainId, bytecode, relayerRoleId, paused, cards, merchants] = await Promise.all([
+  const [chainId, bytecode, adminRoleId, pauserRoleId, tokenAdminRoleId, relayerRoleId, paused, cards, merchants] = await Promise.all([
     publicClient.getChainId(),
     publicClient.getBytecode({ address: contract }),
+    publicClient.readContract({
+      address: contract,
+      abi: SETTLEMENT_ABI,
+      functionName: 'DEFAULT_ADMIN_ROLE',
+    }),
+    publicClient.readContract({
+      address: contract,
+      abi: SETTLEMENT_ABI,
+      functionName: 'PAUSER_ROLE',
+    }),
+    publicClient.readContract({
+      address: contract,
+      abi: SETTLEMENT_ABI,
+      functionName: 'TOKEN_ADMIN_ROLE',
+    }),
     publicClient.readContract({
       address: contract,
       abi: SETTLEMENT_ABI,
@@ -199,13 +219,18 @@ async function validateEnvironment(token: Address): Promise<EnvironmentValidatio
     listCardMappings(),
     listMerchantMappings(),
   ])
-  const [relayerRole, tokens, balances] = await Promise.all([
-    publicClient.readContract({
-      address: contract,
-      abi: SETTLEMENT_ABI,
-      functionName: 'hasRole',
-      args: [relayerRoleId, account.address],
-    }),
+  const expectedRoles = {
+    admin: (config.ADMIN_ADDRESS ?? account.address) as Address,
+    pauser: (config.PAUSER_ADDRESS ?? account.address) as Address,
+    tokenAdmin: (config.TOKEN_ADMIN_ADDRESS ?? account.address) as Address,
+    relayer: (config.RELAYER_ADDRESS ?? account.address) as Address,
+  }
+  const relayerMatchesConfiguredAddress = expectedRoles.relayer.toLowerCase() === account.address.toLowerCase()
+  const [adminAssigned, pauserAssigned, tokenAdminAssigned, relayerAssigned, tokens, balances] = await Promise.all([
+    publicClient.readContract({ address: contract, abi: SETTLEMENT_ABI, functionName: 'hasRole', args: [adminRoleId, expectedRoles.admin] }),
+    publicClient.readContract({ address: contract, abi: SETTLEMENT_ABI, functionName: 'hasRole', args: [pauserRoleId, expectedRoles.pauser] }),
+    publicClient.readContract({ address: contract, abi: SETTLEMENT_ABI, functionName: 'hasRole', args: [tokenAdminRoleId, expectedRoles.tokenAdmin] }),
+    publicClient.readContract({ address: contract, abi: SETTLEMENT_ABI, functionName: 'hasRole', args: [relayerRoleId, expectedRoles.relayer] }),
     Promise.all(allowedTokens().map(async (rawAddress) => {
       const address = rawAddress as Address
       const tokenConfig = await publicClient.readContract({
@@ -239,7 +264,16 @@ async function validateEnvironment(token: Address): Promise<EnvironmentValidatio
 
   assert(chainId === arbitrumSepolia.id, `expected Arbitrum Sepolia ${arbitrumSepolia.id}, got ${chainId}`)
   assert(bytecode !== undefined && bytecode !== '0x', `no contract code at ${contract}`)
-  assert(relayerRole, `relayer ${account.address} does not have RELAYER_ROLE`)
+  const roles = {
+    admin: { address: expectedRoles.admin, assigned: adminAssigned },
+    pauser: { address: expectedRoles.pauser, assigned: pauserAssigned },
+    tokenAdmin: { address: expectedRoles.tokenAdmin, assigned: tokenAdminAssigned },
+    relayer: { address: expectedRoles.relayer, assigned: relayerAssigned },
+  }
+  for (const [name, role] of Object.entries(roles)) {
+    assert(role.assigned, `${name} ${role.address} does not have its expected role`)
+  }
+  assert(relayerMatchesConfiguredAddress, `RELAYER_ADDRESS ${expectedRoles.relayer} does not match the configured private key`)
   assert(!paused, 'settlement contract is paused')
   assert(tokens.length > 0 && tokens.every((item) => item.allowed), 'one or more configured tokens are not allowed')
   for (const wallet of TEST_WALLETS) {
@@ -261,7 +295,9 @@ async function validateEnvironment(token: Address): Promise<EnvironmentValidatio
     chainId,
     contractCodePresent: true,
     relayerAddress: account.address,
-    relayerRole,
+    relayerRole: relayerAssigned,
+    roles,
+    relayerMatchesConfiguredAddress,
     paused,
     tokens,
     cardMappings: activeCards.size,
@@ -423,6 +459,19 @@ async function recordDirectExpire(txId: Hex): Promise<void> {
   }
 }
 
+async function expireAuthorizedHold(txId: Hex): Promise<void> {
+  const hold = await snapshotHold(txId)
+  if (hold.status !== 1) return
+
+  const waitMs = Math.max(0, (hold.expiresAt - Math.floor(Date.now() / 1000) + 1) * 1_000)
+  assert(
+    waitMs <= 30_000,
+    `cannot clean up hold automatically; it expires in ${Math.ceil(waitMs / 1000)}s`,
+  )
+  if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
+  await recordDirectExpire(txId)
+}
+
 async function executeScenario(
   context: ScenarioContext,
   name: string,
@@ -582,23 +631,40 @@ export async function runM3Scenarios(options: {
     const auth = authorization(user.cardToken, nextStan(), '000000000500')
     const txId = txIdOf(auth)
     const before = await snapshot(user.address, context.merchant, context.token)
-    requests.push(auth)
-    const authResponse = await sendIso(context.host, context.port, auth)
-    responses.push(authResponse)
-    assert(authResponse.fields['039'] === '00', `authorize expected 00, got ${authResponse.fields['039']}`)
-    const authorizedHold = await snapshotHold(txId)
-    const waitMs = Math.max(0, (authorizedHold.expiresAt - Math.floor(Date.now() / 1000) + 1) * 1_000)
-    assert(
-      waitMs <= 30_000,
-      `hold expires in ${Math.ceil(waitMs / 1000)}s; run middleware with HOLD_TTL_SECONDS<=30`,
-    )
-    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
-    const capture = captureFrom(auth)
-    requests.push(capture)
-    const captureResponse = await sendIso(context.host, context.port, capture)
-    responses.push(captureResponse)
-    assert(captureResponse.fields['039'] === '54', `expired capture expected 54, got ${captureResponse.fields['039']}`)
-    await recordDirectExpire(txId)
+    let scenarioError: unknown
+    try {
+      requests.push(auth)
+      const authResponse = await sendIso(context.host, context.port, auth)
+      responses.push(authResponse)
+      assert(authResponse.fields['039'] === '00', `authorize expected 00, got ${authResponse.fields['039']}`)
+      const authorizedHold = await snapshotHold(txId)
+      const waitMs = Math.max(0, (authorizedHold.expiresAt - Math.floor(Date.now() / 1000) + 1) * 1_000)
+      assert(
+        waitMs <= 30_000,
+        `hold expires in ${Math.ceil(waitMs / 1000)}s; run middleware with HOLD_TTL_SECONDS<=30`,
+      )
+      if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
+      const capture = captureFrom(auth)
+      requests.push(capture)
+      const captureResponse = await sendIso(context.host, context.port, capture)
+      responses.push(captureResponse)
+      assert(captureResponse.fields['039'] === '54', `expired capture expected 54, got ${captureResponse.fields['039']}`)
+    } catch (error) {
+      scenarioError = error
+    }
+
+    let cleanupError: unknown
+    try {
+      await expireAuthorizedHold(txId)
+    } catch (error) {
+      cleanupError = error
+    }
+    if (scenarioError && cleanupError) {
+      throw new AggregateError([scenarioError, cleanupError], 'expired-hold scenario and cleanup both failed')
+    }
+    if (scenarioError) throw scenarioError
+    if (cleanupError) throw cleanupError
+
     const after = await snapshot(user.address, context.merchant, context.token)
     const expiredHold = await snapshotHold(txId)
     assert(expiredHold.status === 4, `hold expected EXPIRED(4), got ${expiredHold.status}`)

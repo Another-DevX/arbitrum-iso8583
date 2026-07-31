@@ -29,6 +29,11 @@ const ConfigSchema = z.object({
   ALLOWED_TOKENS: z.string().default(
     '0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA,0xC7f974b3710560D070dEc95288339EfAB683C417',
   ),
+  /** Expected public role holders. When omitted in the PoC, the relayer account is expected. */
+  ADMIN_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+  PAUSER_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+  TOKEN_ADMIN_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
+  RELAYER_ADDRESS: z.string().regex(/^0x[0-9a-fA-F]{40}$/).optional(),
 
   // ── Relayer ───────────────────────────────────────────────────────────────
   /** Relayer wallet private key. The wallet must have RELAYER_ROLE. */

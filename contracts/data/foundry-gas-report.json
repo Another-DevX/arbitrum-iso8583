@@ -1,0 +1,89 @@
+{
+  "generatedAt": "2026-07-31T19:30:29.669Z",
+  "methodology": "vm.snapshotGasLastCall",
+  "benchmarkCommand": "forge test --match-contract M3GasBenchmark",
+  "foundryVersion": "forge Version: 1.7.1",
+  "snapshotPath": "contracts/snapshots/M3GasBenchmark.json",
+  "network": {
+    "name": "Arbitrum Sepolia",
+    "chainId": 421614,
+    "blockNumber": "293368279",
+    "gasPriceWei": "20988000"
+  },
+  "ethUsd": {
+    "price": "1866.835",
+    "source": "https://api.coinbase.com/v2/prices/ETH-USD/spot",
+    "capturedAt": "2026-07-31T19:30:29.831Z"
+  },
+  "estimateScope": "Foundry proxy-call execution gas plus transaction intrinsic gas and the Arbitrum NodeInterface L1 component with 10% padding.",
+  "actions": {
+    "authorize": {
+      "gasUsed": "158110",
+      "foundryExecutionGas": "158110",
+      "calldataBytes": "196",
+      "intrinsicGas": "23020",
+      "l2TransactionGas": "181130",
+      "l1GasEstimate": "0",
+      "l1GasEstimatePadded": "0",
+      "totalGasEstimate": "181130",
+      "baseFeeWei": "20930000",
+      "l1BaseFeeEstimateWei": "0",
+      "estimatedL2FeeWei": "3791050900000",
+      "estimatedL1FeeWei": "0",
+      "estimatedFeeWei": "3791050900000",
+      "estimatedFeeEth": "0.000003791050",
+      "estimatedFeeUsd": "0.007077"
+    },
+    "capture": {
+      "gasUsed": "67936",
+      "foundryExecutionGas": "67936",
+      "calldataBytes": "36",
+      "intrinsicGas": "21576",
+      "l2TransactionGas": "89512",
+      "l1GasEstimate": "0",
+      "l1GasEstimatePadded": "0",
+      "totalGasEstimate": "89512",
+      "baseFeeWei": "20930000",
+      "l1BaseFeeEstimateWei": "0",
+      "estimatedL2FeeWei": "1873486160000",
+      "estimatedL1FeeWei": "0",
+      "estimatedFeeWei": "1873486160000",
+      "estimatedFeeEth": "0.000001873486",
+      "estimatedFeeUsd": "0.003497"
+    },
+    "expire": {
+      "gasUsed": "52261",
+      "foundryExecutionGas": "52261",
+      "calldataBytes": "36",
+      "intrinsicGas": "21576",
+      "l2TransactionGas": "73837",
+      "l1GasEstimate": "0",
+      "l1GasEstimatePadded": "0",
+      "totalGasEstimate": "73837",
+      "baseFeeWei": "20930000",
+      "l1BaseFeeEstimateWei": "0",
+      "estimatedL2FeeWei": "1545408410000",
+      "estimatedL1FeeWei": "0",
+      "estimatedFeeWei": "1545408410000",
+      "estimatedFeeEth": "0.000001545408",
+      "estimatedFeeUsd": "0.002885"
+    },
+    "release": {
+      "gasUsed": "56965",
+      "foundryExecutionGas": "56965",
+      "calldataBytes": "36",
+      "intrinsicGas": "21576",
+      "l2TransactionGas": "78541",
+      "l1GasEstimate": "0",
+      "l1GasEstimatePadded": "0",
+      "totalGasEstimate": "78541",
+      "baseFeeWei": "20936000",
+      "l1BaseFeeEstimateWei": "0",
+      "estimatedL2FeeWei": "1644334376000",
+      "estimatedL1FeeWei": "0",
+      "estimatedFeeWei": "1644334376000",
+      "estimatedFeeEth": "0.000001644334",
+      "estimatedFeeUsd": "0.003069"
+    }
+  }
+}

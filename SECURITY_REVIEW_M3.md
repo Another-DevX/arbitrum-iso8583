@@ -1,15 +1,16 @@
 # M3 Internal Security Review
 
-Date: 2026-07-28
+Date: 2026-07-31
 Scope: settlement contract, UUPS proxy, relayer middleware, ISO replay controls,
 escrow accounting and emergency operations.
 
 ## Result
 
-No critical or high-severity contract finding was produced by Slither. The
-static report contains nine findings: one medium, four low and four
-informational. All are reviewed below. Foundry verification completed with 84
-passing tests, including four invariant campaigns and two UUPS upgrade tests.
+Slither 0.11.6 reports zero unsuppressed findings across the application
+contracts. The six application warnings from the previous run were reviewed and
+suppressed at the exact intentional statements with inline rationale; inherited
+OpenZeppelin findings are excluded as dependencies. Foundry verification now
+includes 84 unit/fuzz/invariant/upgrade tests and four dedicated gas benchmarks.
 
 ## Access control
 
@@ -64,16 +65,25 @@ Pause blocks new deposits, withdrawals, authorizations, captures and releases.
 Expired holds can still be recovered while paused. This is intentional and
 covered by tests.
 
-## Slither triage
+## Slither resolution
 
-| Finding | Impact | Review |
-|---|---|---|
-| Strict equality on received deposit amount | Medium | Intentional solvency guard; accepting a smaller delta would over-credit fee-on-transfer tokens. |
-| Timestamp comparisons in hold lifecycle | Low | Required business deadlines; miner/sequencer timestamp tolerance is insignificant relative to configured hold TTL. |
-| Assembly in ERC-7201 storage accessor | Informational | Required to bind the documented namespaced storage slot; no arbitrary memory access. |
-| Unindexed inherited OpenZeppelin events | Informational | Upstream interface/event definitions, not application-controlled settlement events. |
+| Previous finding | Resolution |
+|---|---|
+| Strict equality on received deposit amount | Retained as the required solvency invariant and locally suppressed with rationale; accepting a smaller delta would over-credit fee-on-transfer tokens. |
+| Timestamp comparisons in hold lifecycle | Retained as explicit business deadlines and locally suppressed at authorize, capture, release and expire. They are not randomness or price inputs. |
+| Assembly in ERC-7201 storage accessor | Retained as the fixed namespaced-storage accessor and locally suppressed; the slot is constant and not caller-controlled. |
+| Unindexed inherited OpenZeppelin events | Removed from project findings with `exclude_dependencies`; those upstream event declarations are not application-controlled. |
 
-Raw evidence: `contracts/data/slither-report.json`.
+Raw evidence: `contracts/data/slither-report.json` (`success: true`, zero
+detectors). CI now writes a fresh artifact and fails if an unsuppressed finding
+regresses, instead of accepting the previously committed JSON file.
+
+Current reproducible output:
+
+```text
+$ slither . --config-file slither.config.json --json <temporary-output.json>
+. analyzed (24 contracts with 102 detectors), 0 result(s) found
+```
 
 ## Middleware findings and required controls
 

@@ -24,6 +24,14 @@ async function main(): Promise<void> {
   if (!health.ok) {
     throw new Error(`Middleware health check failed: HTTP ${health.status}`)
   }
+  const baselineMetricsResponse = await fetch(`${backendUrl}/metrics`, {
+    signal: AbortSignal.timeout(5_000),
+  })
+  if (!baselineMetricsResponse.ok) {
+    throw new Error(`Metrics baseline request failed: HTTP ${baselineMetricsResponse.status}`)
+  }
+  const baselineMetrics = await baselineMetricsResponse.json() as { capturedAtMs?: number }
+  const metricsSince = baselineMetrics.capturedAtMs ?? Date.now()
 
   console.log('=== M3 PoC Demo — Arbitrum ISO 8583 ===')
   const fromBlock = await publicClient.getBlockNumber()
@@ -40,7 +48,7 @@ async function main(): Promise<void> {
     durationMs: result.durationMs,
   })))
 
-  const metricsResponse = await fetch(`${backendUrl}/metrics`, {
+  const metricsResponse = await fetch(`${backendUrl}/metrics?since=${metricsSince}`, {
     signal: AbortSignal.timeout(5_000),
   })
   if (!metricsResponse.ok) throw new Error(`Metrics request failed: HTTP ${metricsResponse.status}`)
@@ -59,7 +67,6 @@ async function main(): Promise<void> {
   const reportPath = generateM3Report({
     dataDir: outputDir,
     runPath: run.artifactPath,
-    gasReportPath: run.gasReportPath,
     metricsPath,
     reconciliationPath: reconciliation.reportPath,
   })

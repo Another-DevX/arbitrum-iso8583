@@ -65,7 +65,12 @@ export async function waitForReceipt(
     // ── Reverted ───────────────────────────────────────────────────────────
     if (receipt.status === 'reverted') {
       let revertReason = 'unknown revert'
-      try { revertReason = await getRevertReason(txHash) } catch { /* ignore */ }
+      let isoResponseCode = '05'
+      try {
+        const revert = await getRevertDetails(txHash)
+        revertReason = revert.reason
+        isoResponseCode = revert.isoResponseCode
+      } catch { /* retain the safe generic decline */ }
 
       log.warn({ blockNumber: receipt.blockNumber.toString(), revertReason }, 'Transaction reverted')
       txConfirmed.inc()
@@ -77,10 +82,10 @@ export async function waitForReceipt(
         revert_reason:  revertReason,
       })
       const confirmationMs = Math.round(Date.now() - submittedAt)
-      txLatency.observe({ phase: 'tx_confirm' }, confirmationMs)
+      txLatency.observe({ phase: 'tx_confirm', action }, confirmationMs)
       return {
         outcome: 'reverted',
-        isoResponseCode: '05',
+        isoResponseCode,
         txHash,
         blockNumber: Number(receipt.blockNumber),
         blockHash: receipt.blockHash,
@@ -97,7 +102,7 @@ export async function waitForReceipt(
     const events = decodePaymentEvents(receipt.logs)
     const outcome = extractOutcome(events)
     const confirmationMs = Math.round(Date.now() - submittedAt)
-    txLatency.observe({ phase: 'tx_confirm' }, confirmationMs)
+    txLatency.observe({ phase: 'tx_confirm', action }, confirmationMs)
     log.info({ outcome, blockNumber: receipt.blockNumber.toString(), confirmationMs }, 'Transaction confirmed')
     txConfirmed.inc()
 
@@ -130,7 +135,7 @@ export async function waitForReceipt(
       last_error:     classified.code,
     })
     const confirmationMs = Math.round(Date.now() - submittedAt)
-    txLatency.observe({ phase: 'tx_confirm' }, confirmationMs)
+    txLatency.observe({ phase: 'tx_confirm', action }, confirmationMs)
     return {
       outcome: 'timeout',
       isoResponseCode: '96',
@@ -193,13 +198,22 @@ function extractOutcome(events: DecodedPaymentEvent[]): OnchainOutcome {
   return 'authorized'
 }
 
-async function getRevertReason(txHash: `0x${string}`): Promise<string> {
+async function getRevertDetails(txHash: `0x${string}`): Promise<{
+  reason: string
+  isoResponseCode: string
+}> {
   const tx = await publicClient.getTransaction({ hash: txHash })
   try {
     await publicClient.call({ to: tx.to, data: tx.input, value: tx.value, blockNumber: tx.blockNumber! })
-    return 'no revert reason'
+    return { reason: 'no revert reason', isoResponseCode: '05' }
   } catch (err: unknown) {
+    const classified = classifyError(err)
     const e = err as { shortMessage?: string; message?: string }
-    return e.shortMessage ?? e.message ?? 'unknown'
+    return {
+      reason: classified.code === 'UNKNOWN'
+        ? e.shortMessage ?? e.message ?? 'unknown revert'
+        : classified.message,
+      isoResponseCode: classified.isoResponseCode,
+    }
   }
 }

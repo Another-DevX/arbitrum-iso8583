@@ -43,7 +43,7 @@ The stack exposes:
 
 - UI: `http://localhost:5173`
 - HTTP API: `http://localhost:3100`
-- ISO 8583 TCP: `localhost:5000`
+- ISO 8583 TCP: `localhost:5001`
 - PostgreSQL: `localhost:5432`
 
 Docker Compose is the reproducible development environment. Arbitrum Sepolia
@@ -61,6 +61,10 @@ CONTRACT_ADDRESS
 ALLOWED_TOKENS
 CORS_ORIGIN
 ENABLE_POS_WS_BRIDGE
+ADMIN_ADDRESS
+PAUSER_ADDRESS
+TOKEN_ADMIN_ADDRESS
+RELAYER_ADDRESS
 ```
 
 Do not commit Railway values or role-holder keys. `RPC_URL` accepts multiple
@@ -69,19 +73,25 @@ comma-separated endpoints.
 ## M3 execution
 
 Run with a funded test environment. The expiry scenario requires the backend to
-use `HOLD_TTL_SECONDS<=30`; local Compose defaults to three seconds.
+use `HOLD_TTL_SECONDS<=30`; local Compose defaults to fifteen seconds so normal
+captures have enough time to confirm before the expiry scenario runs.
 
 ```bash
 cd backend
 npm ci
+npm run m3:gas
 npm run m3:scenarios
 npm run reconcile
-npm run m3:demo
+npm run m3:demo -- --port 5001
 npm run m3:report
 ```
 
+`m3:gas` runs the four Foundry lifecycle benchmarks and captures transaction
+intrinsic gas, the Arbitrum `NodeInterface` L1 component, the current Sepolia
+gas price and a timestamped ETH/USD reference. The report graphs gas and total
+estimated cost in wei; it does not graph USD.
 `m3:demo` executes the six binary TCP scenarios, exports accounting snapshots,
-records gas and fees, reconciles four evidence planes, and generates
+records receipt evidence, reconciles four evidence planes, and generates
 `TECHNICAL_MILESTONE_REPORT_3.md`.
 
 ## Verification

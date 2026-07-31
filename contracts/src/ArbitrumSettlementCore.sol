@@ -62,6 +62,9 @@ contract ArbitrumSettlementCore is
 
     function _getStorage() private pure returns (ArbitrumSettlementCoreStorage storage s) {
         bytes32 location = STORAGE_LOCATION;
+        // Slither: this assembly is the standard ERC-7201 accessor for the fixed
+        // application namespace above; it does not accept a caller-controlled slot.
+        // slither-disable-next-line assembly
         assembly {
             s.slot := location
         }
@@ -123,6 +126,9 @@ contract ArbitrumSettlementCore is
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         uint256 received = IERC20(token).balanceOf(address(this)) - balanceBefore;
+        // Slither: exact equality is the solvency invariant. Crediting a smaller
+        // received amount would make the internal ledger exceed token custody.
+        // slither-disable-next-line incorrect-equality
         require(received == amount, FeeOnTransferToken(token, amount, received));
 
         _getStorage().balances[msg.sender][token].available += amount;
@@ -183,6 +189,8 @@ contract ArbitrumSettlementCore is
         require(user != address(0), ZeroAddress());
         require(merchant != address(0), ZeroAddress());
         require(amount != 0, ZeroAmount());
+        // Slither: expiresAt is a business deadline, not a source of randomness.
+        // slither-disable-next-line timestamp
         require(expiresAt > block.timestamp, ExpiresAtInPast(expiresAt, block.timestamp));
 
         uint256 available = $.balances[user][token].available;
@@ -223,6 +231,8 @@ contract ArbitrumSettlementCore is
     function capture(bytes32 txId) external onlyRole(RELAYER_ROLE) whenNotPaused nonReentrant requireAuthorized(txId) {
         ArbitrumSettlementCoreStorage storage $ = _getStorage();
         Hold storage hold = $.holds[txId];
+        // Slither: block time intentionally enforces the documented hold deadline.
+        // slither-disable-next-line timestamp
         require(block.timestamp <= hold.expiresAt, HoldExpired(txId, hold.expiresAt));
 
         address user = hold.user;
@@ -253,6 +263,8 @@ contract ArbitrumSettlementCore is
     function release(bytes32 txId) external whenNotPaused nonReentrant requireReleaserRole requireAuthorized(txId) {
         ArbitrumSettlementCoreStorage storage $ = _getStorage();
         Hold storage hold = $.holds[txId];
+        // Slither: block time intentionally enforces the documented hold deadline.
+        // slither-disable-next-line timestamp
         require(block.timestamp <= hold.expiresAt, HoldExpired(txId, hold.expiresAt));
 
         address user = hold.user;
@@ -350,6 +362,8 @@ contract ArbitrumSettlementCore is
     function _expireSingle(bytes32 txId) internal requireAuthorized(txId) {
         ArbitrumSettlementCoreStorage storage $ = _getStorage();
         Hold storage h = $.holds[txId];
+        // Slither: expiry is permissionless only after this business deadline.
+        // slither-disable-next-line timestamp
         require(block.timestamp > h.expiresAt, HoldNotExpired(txId, h.expiresAt));
 
         address user = h.user;

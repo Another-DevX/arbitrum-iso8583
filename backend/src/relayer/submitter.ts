@@ -127,7 +127,7 @@ export async function submitContractCall(
       if (gas > gasLimit) gas = gasLimit
     } catch (err) {
       const gasEstimateMs = Math.round(performance.now() - gasStartedAt)
-      txLatency.observe({ phase: 'gas_estimate' }, gasEstimateMs)
+      txLatency.observe({ phase: 'gas_estimate', action: params.functionName }, gasEstimateMs)
       const classified = classifyError(err)
       errorClassified.inc()
       log.warn({ classified }, 'Gas estimation failed – the tx would revert')
@@ -135,7 +135,7 @@ export async function submitContractCall(
     }
     const gasEstimateMs = Math.round(performance.now() - gasStartedAt)
     completedGasEstimateMs = gasEstimateMs
-    txLatency.observe({ phase: 'gas_estimate' }, gasEstimateMs)
+    txLatency.observe({ phase: 'gas_estimate', action: params.functionName }, gasEstimateMs)
 
     // 2. Local nonce
     const nonce = await nextNonce()
@@ -145,7 +145,7 @@ export async function submitContractCall(
     submitStartedAt = performance.now()
     const txHash = await writeCall(params, nonce, gas)
     const submitMs = Math.round(performance.now() - submitStartedAt)
-    txLatency.observe({ phase: 'tx_submit' }, submitMs)
+    txLatency.observe({ phase: 'tx_submit', action: params.functionName }, submitMs)
 
     txSubmitted.inc()
     log.info({ txHash }, 'Transaction sent')
@@ -163,7 +163,7 @@ export async function submitContractCall(
     const submitMs = submitStartedAt === undefined
       ? undefined
       : Math.round(performance.now() - submitStartedAt)
-    if (submitMs !== undefined) txLatency.observe({ phase: 'tx_submit' }, submitMs)
+    if (submitMs !== undefined) txLatency.observe({ phase: 'tx_submit', action: params.functionName }, submitMs)
     const classified = classifyError(err)
     errorClassified.inc()
 

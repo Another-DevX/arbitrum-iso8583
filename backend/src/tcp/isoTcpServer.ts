@@ -28,6 +28,15 @@ import {
   RC,
 } from '../iso/response.js'
 import { parseIsoMessage } from '../iso/parser.js'
+import { txLatency } from '../observability/metrics.js'
+
+function latencyOutcome(result: Awaited<ReturnType<typeof processIsoMessage>>): string {
+  if (result.status === 'duplicate') return 'duplicate_processing'
+  if (result.status === 'declined') return 'decline_processing'
+  if (result.status === 'approved' && result.action === 'authorize') return 'authorize_e2e'
+  if (result.status === 'approved' && result.action === 'capture') return 'capture_e2e'
+  return 'other_processing'
+}
 
 // ── Connection handler ────────────────────────────────────────────────────────
 
@@ -46,6 +55,7 @@ function handleConnection(socket: net.Socket): void {
 
   // ── Complete ISO 8583 message received ───────────────────────────────────
   framer.on('message', async (body: Buffer) => {
+    const responseStartedAt = performance.now()
     const mti = body.length >= 4 ? body.subarray(0, 4).toString('ascii') : 'XXXX'
     const msgLog = connLog.child({ mti })
 
@@ -57,7 +67,14 @@ function handleConnection(socket: net.Socket): void {
     } catch (err) {
       msgLog.warn({ err }, 'ISO 8583 decode error')
       // Cannot echo STAN/RRN because we couldn't parse – use fallback
-      socket.write(buildFallbackDeclineResponse(mti, RC.INVALID_TRANSACTION))
+      socket.write(buildFallbackDeclineResponse(mti, RC.INVALID_TRANSACTION), (writeError) => {
+        if (!writeError) {
+          txLatency.observe(
+            { phase: 'tcp_response', outcome: 'decline_processing' },
+            performance.now() - responseStartedAt,
+          )
+        }
+      })
       return
     }
 
@@ -96,7 +113,14 @@ function handleConnection(socket: net.Socket): void {
     // 5. Write response
     if (!socket.destroyed) {
       socket.write(response, (err) => {
-        if (err) msgLog.warn({ err }, 'Error writing ISO response to socket')
+        if (err) {
+          msgLog.warn({ err }, 'Error writing ISO response to socket')
+          return
+        }
+        txLatency.observe(
+          { phase: 'tcp_response', outcome: latencyOutcome(result) },
+          performance.now() - responseStartedAt,
+        )
       })
     }
   })

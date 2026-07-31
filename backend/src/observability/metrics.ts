@@ -12,7 +12,7 @@ const MAX_SAMPLES_PER_PHASE = 10_000
 interface LatencySeries {
   count: number
   sum: number
-  samples: number[]
+  samples: Array<{ milliseconds: number; observedAt: number }>
 }
 
 export interface LatencyStats {
@@ -26,10 +26,15 @@ export interface LatencyStats {
 }
 
 export interface MetricsSnapshot extends Record<string, unknown> {
+  capturedAtMs: number
   latency: Record<string, LatencyStats>
+  latencyByAction: Record<string, Record<string, LatencyStats>>
+  latencyByOutcome: Record<string, Record<string, LatencyStats>>
 }
 
 const latencySeries = new Map<string, LatencySeries>()
+const latencyByActionSeries = new Map<string, Map<string, LatencySeries>>()
+const latencyByOutcomeSeries = new Map<string, Map<string, LatencySeries>>()
 
 function inc(name: string): void {
   _counts[name] = (_counts[name] ?? 0) + 1
@@ -41,23 +46,45 @@ function percentile(sorted: number[], ratio: number): number {
   return Math.round(sorted[Math.max(index, 0)])
 }
 
-export function observeLatency(phase: string, milliseconds: number): void {
+function appendLatency(seriesMap: Map<string, LatencySeries>, phase: string, milliseconds: number, observedAt: number): void {
   const value = Math.max(0, milliseconds)
-  const series = latencySeries.get(phase) ?? { count: 0, sum: 0, samples: [] }
+  const series = seriesMap.get(phase) ?? { count: 0, sum: 0, samples: [] }
   series.count += 1
   series.sum += value
-  series.samples.push(value)
+  series.samples.push({ milliseconds: value, observedAt })
   if (series.samples.length > MAX_SAMPLES_PER_PHASE) series.samples.shift()
-  latencySeries.set(phase, series)
+  seriesMap.set(phase, series)
 }
 
-export function getLatencySummary(): Record<string, LatencyStats> {
+export function observeLatency(
+  phase: string,
+  milliseconds: number,
+  action?: string,
+  outcome?: string,
+): void {
+  const observedAt = Date.now()
+  appendLatency(latencySeries, phase, milliseconds, observedAt)
+  if (action) {
+    const actionSeries = latencyByActionSeries.get(action) ?? new Map<string, LatencySeries>()
+    appendLatency(actionSeries, phase, milliseconds, observedAt)
+    latencyByActionSeries.set(action, actionSeries)
+  }
+  if (outcome) {
+    const outcomeSeries = latencyByOutcomeSeries.get(outcome) ?? new Map<string, LatencySeries>()
+    appendLatency(outcomeSeries, phase, milliseconds, observedAt)
+    latencyByOutcomeSeries.set(outcome, outcomeSeries)
+  }
+}
+
+function summarize(seriesMap: Map<string, LatencySeries>, sinceMs = 0): Record<string, LatencyStats> {
   const result: Record<string, LatencyStats> = {}
-  for (const [phase, series] of latencySeries.entries()) {
-    const sorted = [...series.samples].sort((a, b) => a - b)
+  for (const [phase, series] of seriesMap.entries()) {
+    const selected = series.samples.filter((sample) => sample.observedAt >= sinceMs)
+    if (selected.length === 0) continue
+    const sorted = selected.map((sample) => sample.milliseconds).sort((a, b) => a - b)
     result[phase] = {
-      count: series.count,
-      avgMs: Math.round(series.sum / series.count),
+      count: selected.length,
+      avgMs: Math.round(sorted.reduce((sum, value) => sum + value, 0) / selected.length),
       minMs: Math.round(sorted[0] ?? 0),
       maxMs: Math.round(sorted[sorted.length - 1] ?? 0),
       p50: percentile(sorted, 0.5),
@@ -68,8 +95,24 @@ export function getLatencySummary(): Record<string, LatencyStats> {
   return result
 }
 
-export function getMetrics(): MetricsSnapshot {
-  return { ..._counts, latency: getLatencySummary() }
+export function getLatencySummary(sinceMs = 0): Record<string, LatencyStats> {
+  return summarize(latencySeries, sinceMs)
+}
+
+export function getMetrics(sinceMs = 0): MetricsSnapshot {
+  const latencyByAction = Object.fromEntries(
+    [...latencyByActionSeries.entries()].map(([action, series]) => [action, summarize(series, sinceMs)]),
+  )
+  const latencyByOutcome = Object.fromEntries(
+    [...latencyByOutcomeSeries.entries()].map(([outcome, series]) => [outcome, summarize(series, sinceMs)]),
+  )
+  return {
+    ..._counts,
+    capturedAtMs: Date.now(),
+    latency: getLatencySummary(sinceMs),
+    latencyByAction,
+    latencyByOutcome,
+  }
 }
 
 type Labels = Record<string, string | number>
@@ -83,12 +126,14 @@ export const errorClassified     = { inc: (_labels?: Labels) => inc('error_class
 
 export const relayerNonce = { set: (_value: number) => {} }
 export const txLatency = {
-  observe: (labels: { phase: string }, milliseconds: number) =>
-    observeLatency(labels.phase, milliseconds),
+  observe: (labels: { phase: string; action?: string; outcome?: string }, milliseconds: number) =>
+    observeLatency(labels.phase, milliseconds, labels.action, labels.outcome),
 }
 
 /** Test-only reset used to prevent cross-suite percentile contamination. */
 export function _resetMetricsForTests(): void {
   for (const key of Object.keys(_counts)) delete _counts[key]
   latencySeries.clear()
+  latencyByActionSeries.clear()
+  latencyByOutcomeSeries.clear()
 }
