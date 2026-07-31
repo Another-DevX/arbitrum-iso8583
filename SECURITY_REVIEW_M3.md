@@ -87,8 +87,8 @@ $ slither . --config-file slither.config.json --json <temporary-output.json>
 
 ## Middleware findings and required controls
 
-- Railway/database/relayer secrets must only be supplied as environment
-  variables.
+- Database and relayer secrets must only be supplied through the ignored local
+  `backend/.env` file or process environment variables.
 - Admin mapping routes require deployment-layer authentication or an API
   gateway before the environment is exposed outside a controlled network.
 - ISO payload logging must use test tokens only; production PAN data requires

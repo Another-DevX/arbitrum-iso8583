@@ -1,6 +1,6 @@
 # Technical Milestone Report — M3 PoC
 
-Generated: 2026-07-31T21:48:55.790Z
+Generated: 2026-07-31T21:50:52.610Z
 
 ## Executive Summary
 
@@ -198,7 +198,7 @@ flowchart LR
 - Test assets are mock ERC-20 tokens and the environment remains testnet-only.
 - The synchronous confirmation model increases POS latency.
 - Partial capture, refunds, velocity limits, KYC/AML and user-signed authorizations are outside this PoC.
-- Railway secrets and role-holder keys must remain outside source control and be rotated independently.
+- Database secrets and role-holder keys must remain outside source control and be rotated independently.
 - Solvency enumeration is complete for configured test mappings; production requires an indexed liability ledger.
 - Browser demo accounts are public testnet identities and must never be funded or authorized on a production network.
 

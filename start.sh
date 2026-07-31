@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local reproducible stack: PostgreSQL + middleware + UI.
-# Arbitrum Sepolia is the chain environment; Railway hosts staging.
+# Arbitrum Sepolia is the chain environment; all application services run locally.
 set -euo pipefail
 
 if [[ -z "${RELAYER_PRIVATE_KEY:-}" ]] && [[ ! -f backend/.env ]]; then

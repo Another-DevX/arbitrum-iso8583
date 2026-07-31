@@ -59,8 +59,8 @@ npm run m3:report
 The test suite requires a PostgreSQL database. Root `docker-compose.yml`
 provides a local PostgreSQL 16 instance.
 
-`railway.toml` configures Dockerfile deployment, health checks and restart
-policy when the `backend/` directory is selected as the Railway service root.
+The root `docker-compose.yml` builds this service from `backend/Dockerfile` and
+provides its local health check, PostgreSQL dependency and port mappings.
 
 ## Interfaces
 

@@ -49,27 +49,6 @@ The stack exposes:
 Docker Compose is the reproducible development environment. Arbitrum Sepolia
 remains the chain; it does not deploy a replacement Anvil contract.
 
-## Railway staging
-
-Railway hosts the staging backend and PostgreSQL service. Configure at least:
-
-```text
-RELAYER_PRIVATE_KEY
-DATABASE_URL
-RPC_URL
-CONTRACT_ADDRESS
-ALLOWED_TOKENS
-CORS_ORIGIN
-ENABLE_POS_WS_BRIDGE
-ADMIN_ADDRESS
-PAUSER_ADDRESS
-TOKEN_ADMIN_ADDRESS
-RELAYER_ADDRESS
-```
-
-Do not commit Railway values or role-holder keys. `RPC_URL` accepts multiple
-comma-separated endpoints.
-
 ## Reproducing the M3 verification
 
 These are the exact test groups represented in the M3 report. Commands are run
