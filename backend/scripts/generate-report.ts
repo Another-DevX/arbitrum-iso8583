@@ -1,10 +1,11 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { M3ScenarioRun } from './m3-scenarios.js'
 import type { ReconciliationReport } from './reconcile.js'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const BACKEND_ROOT = resolve(REPO_ROOT, 'backend')
 
 interface FoundryGasAction {
   gasUsed: string
@@ -103,7 +104,8 @@ function markdownCell(value: unknown): string {
 
 function evidencePath(path: string | undefined): string {
   if (!path) return 'not available'
-  return path.startsWith(REPO_ROOT) ? relative(REPO_ROOT, path) : path
+  const absolutePath = isAbsolute(path) ? path : resolve(BACKEND_ROOT, path)
+  return absolutePath.startsWith(REPO_ROOT) ? relative(REPO_ROOT, absolutePath) : path
 }
 
 function accountingSummary(result: M3ScenarioRun['results'][number]): string {
@@ -421,12 +423,31 @@ ${reconciliationRows}
 - Solvency enumeration is complete for configured test mappings; production requires an indexed liability ledger.
 - Browser demo accounts are public testnet identities and must never be funded or authorized on a production network.
 
+## Reproducing This Evidence
+
+The complete, copy-pasteable procedure is documented in the repository
+\`README.md\` under **Reproducing the M3 verification**. Its execution order is:
+
+1. Copy \`backend/.env.example\` to the ignored \`backend/.env\` and configure the
+   funded Arbitrum Sepolia relayer, deployed contract, tokens and role holders.
+2. Start Docker Compose and confirm \`http://localhost:3100/health\`.
+3. Run Jest against a dedicated temporary PostgreSQL database, never the
+   \`middleware\` evidence database; then build the backend and UI.
+4. Run the 88 Foundry tests and Slither with \`slither.config.json\`.
+5. Run \`npm --prefix backend run m3:gas\`.
+6. Run \`npm --prefix backend run m3:demo -- --port 5001\` once. That command
+   executes all six TCP scenarios, captures a fresh latency window, performs
+   reconciliation and rewrites this report.
+
+Expected M3 acceptance result: 83 backend tests, 88 Foundry tests, zero Slither
+detectors, six of six scenarios passing and zero reconciliation mismatches.
+
 ## Evidence
 
 - Scenario run: ${evidencePath(runPath)}
 - Foundry gas report: ${gas ? evidencePath(foundryGasPath) : 'not available'}
 - Foundry gas snapshot: ${gas?.snapshotPath ?? 'not available'}
-- Receipt gas report (operational run, not used for the estimate above): ${run?.gasReportPath ?? 'not available'}
+- Receipt gas report (operational run, not used for the estimate above): ${evidencePath(run?.gasReportPath)}
 - Reconciliation report: ${evidencePath(reconciliationPath)}
 - Metrics snapshot: ${evidencePath(metricsPath)}
 `

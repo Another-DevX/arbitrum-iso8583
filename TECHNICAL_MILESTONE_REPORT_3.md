@@ -1,6 +1,6 @@
 # Technical Milestone Report — M3 PoC
 
-Generated: 2026-07-31T21:42:28.794Z
+Generated: 2026-07-31T21:48:55.790Z
 
 ## Executive Summary
 
@@ -202,11 +202,30 @@ flowchart LR
 - Solvency enumeration is complete for configured test mappings; production requires an indexed liability ledger.
 - Browser demo accounts are public testnet identities and must never be funded or authorized on a production network.
 
+## Reproducing This Evidence
+
+The complete, copy-pasteable procedure is documented in the repository
+`README.md` under **Reproducing the M3 verification**. Its execution order is:
+
+1. Copy `backend/.env.example` to the ignored `backend/.env` and configure the
+   funded Arbitrum Sepolia relayer, deployed contract, tokens and role holders.
+2. Start Docker Compose and confirm `http://localhost:3100/health`.
+3. Run Jest against a dedicated temporary PostgreSQL database, never the
+   `middleware` evidence database; then build the backend and UI.
+4. Run the 88 Foundry tests and Slither with `slither.config.json`.
+5. Run `npm --prefix backend run m3:gas`.
+6. Run `npm --prefix backend run m3:demo -- --port 5001` once. That command
+   executes all six TCP scenarios, captures a fresh latency window, performs
+   reconciliation and rewrites this report.
+
+Expected M3 acceptance result: 83 backend tests, 88 Foundry tests, zero Slither
+detectors, six of six scenarios passing and zero reconciliation mismatches.
+
 ## Evidence
 
-- Scenario run: data/m3-run-1785534147284.json
+- Scenario run: backend/data/m3-run-1785534147284.json
 - Foundry gas report: contracts/data/foundry-gas-report.json
 - Foundry gas snapshot: contracts/snapshots/M3GasBenchmark.json
-- Receipt gas report (operational run, not used for the estimate above): data/m3-gas-report-1785534147283.json
-- Reconciliation report: data/reconciliation-1785534148783.json
-- Metrics snapshot: data/m3-metrics-1785534147305.json
+- Receipt gas report (operational run, not used for the estimate above): backend/data/m3-gas-report-1785534147283.json
+- Reconciliation report: backend/data/reconciliation-1785534148783.json
+- Metrics snapshot: backend/data/m3-metrics-1785534147305.json
