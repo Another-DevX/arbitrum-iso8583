@@ -1,0 +1,56 @@
+{
+  "scenario": "invalid-merchant",
+  "passed": true,
+  "expectedCode": "03",
+  "receivedCode": "03",
+  "durationMs": 300,
+  "requests": [
+    {
+      "mti": "0100",
+      "fields": {
+        "002": "TOK_TEST_002",
+        "003": "000000",
+        "004": "000000000500",
+        "007": "0731164226",
+        "011": "834125",
+        "012": "164226",
+        "013": "0731",
+        "037": "697783412500",
+        "042": "TERM_001",
+        "043": "UNKNOWN_MERCH",
+        "049": "840"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "mti": "0110",
+      "fields": {
+        "011": "834125",
+        "037": "697783412500",
+        "039": "03"
+      }
+    }
+  ],
+  "snapshotBefore": {
+    "available": "980000000",
+    "locked": "20000000",
+    "contractTokenBalance": "23817305113",
+    "merchantTokenBalance": "70207174887"
+  },
+  "snapshotAfter": {
+    "available": "980000000",
+    "locked": "20000000",
+    "contractTokenBalance": "23817305113",
+    "merchantTokenBalance": "70207174887"
+  },
+  "holdSnapshot": {
+    "user": "0x0000000000000000000000000000000000000000",
+    "merchant": "0x0000000000000000000000000000000000000000",
+    "token": "0x0000000000000000000000000000000000000000",
+    "amount": "0",
+    "expiresAt": 0,
+    "status": 0
+  },
+  "artifactPath": "data/m3-scenario-invalid-merchant-1785534147277.json"
+}

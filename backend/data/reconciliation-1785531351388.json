@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-07-31T20:55:51.388Z",
+  "blockRange": {
+    "from": "293387946",
+    "to": "293388083"
+  },
+  "plane1": {
+    "checked": 73,
+    "mismatches": []
+  },
+  "plane2": {
+    "checked": 14,
+    "mismatches": []
+  },
+  "plane3": {
+    "checked": 4,
+    "mismatches": []
+  },
+  "plane4": {
+    "checked": 2,
+    "solvencyOk": true,
+    "mismatches": []
+  },
+  "totalMismatches": 0,
+  "reportPath": "data/reconciliation-1785531351388.json"
+}

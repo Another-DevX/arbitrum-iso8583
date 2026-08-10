@@ -1,0 +1,80 @@
+{
+  "scenario": "duplicate-authorize",
+  "passed": true,
+  "expectedCode": "94",
+  "receivedCode": "94",
+  "durationMs": 1712,
+  "requests": [
+    {
+      "mti": "0100",
+      "fields": {
+        "002": "TOK_TEST_003",
+        "003": "000000",
+        "004": "000000000500",
+        "007": "0731164202",
+        "011": "834120",
+        "012": "164202",
+        "013": "0731",
+        "037": "264883412000",
+        "042": "TERM_001",
+        "043": "MERCHANT001",
+        "049": "840"
+      }
+    },
+    {
+      "mti": "0100",
+      "fields": {
+        "002": "TOK_TEST_003",
+        "003": "000000",
+        "004": "000000000500",
+        "007": "0731164202",
+        "011": "834120",
+        "012": "164202",
+        "013": "0731",
+        "037": "264883412000",
+        "042": "TERM_001",
+        "043": "MERCHANT001",
+        "049": "840"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "mti": "0110",
+      "fields": {
+        "011": "834120",
+        "037": "264883412000",
+        "039": "00"
+      }
+    },
+    {
+      "mti": "0110",
+      "fields": {
+        "011": "834120",
+        "037": "264883412000",
+        "039": "94"
+      }
+    }
+  ],
+  "snapshotBefore": {
+    "available": "940000000",
+    "locked": "35000000",
+    "contractTokenBalance": "23822305113",
+    "merchantTokenBalance": "70202174887"
+  },
+  "snapshotAfter": {
+    "available": "935000000",
+    "locked": "40000000",
+    "contractTokenBalance": "23822305113",
+    "merchantTokenBalance": "70202174887"
+  },
+  "holdSnapshot": {
+    "user": "0x9b96854113FEfc8405f553d6323c150237C5280d",
+    "merchant": "0x0C015C85340793854e7528943746447713e2C326",
+    "token": "0xA730eFe70d3f67d08dD4a17a867c95bFe1F33CfA",
+    "amount": "5000000",
+    "expiresAt": 1785534137,
+    "status": 1
+  },
+  "artifactPath": "data/m3-scenario-duplicate-authorize-1785534124360.json"
+}

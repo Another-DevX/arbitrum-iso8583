@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-07-31T21:42:27.283Z",
+  "network": "Arbitrum Sepolia",
+  "contract": "0xAaE3116210b866f00ccf8dCbD540A6Cc5d070d72",
+  "actions": {
+    "authorize": {
+      "count": 4,
+      "averageGas": "164030",
+      "minGas": "164030",
+      "maxGas": "164030",
+      "totalGas": "656120",
+      "totalFeeWei": "13146676440000",
+      "averageFeeWei": "3286669110000"
+    },
+    "capture": {
+      "count": 2,
+      "averageGas": "72412",
+      "minGas": "72412",
+      "maxGas": "72412",
+      "totalGas": "144824",
+      "totalFeeWei": "2945864984000",
+      "averageFeeWei": "1472932492000"
+    },
+    "expire": {
+      "count": 1,
+      "averageGas": "56737",
+      "minGas": "56737",
+      "maxGas": "56737",
+      "totalGas": "56737",
+      "totalFeeWei": "1137803798000",
+      "averageFeeWei": "1137803798000"
+    }
+  }
+}

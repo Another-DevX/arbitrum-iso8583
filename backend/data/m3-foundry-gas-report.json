@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-07-31T18:39:48.924Z",
+  "methodology": "Foundry vm.snapshotGasLastCall against the UUPS proxy",
+  "benchmarkCommand": "forge test --match-contract M3GasBenchmark",
+  "foundryVersion": "forge Version: 1.7.1",
+  "snapshotPath": "/Users/anotherdev/workspace/arbitrum-iso8583/contracts/snapshots/M3GasBenchmark.json",
+  "network": {
+    "name": "Arbitrum Sepolia",
+    "chainId": 421614,
+    "blockNumber": "293356403",
+    "gasPriceWei": "21298000"
+  },
+  "ethUsd": {
+    "price": "1865.215",
+    "source": "https://api.coinbase.com/v2/prices/ETH-USD/spot",
+    "capturedAt": "2026-07-31T18:39:49.082Z"
+  },
+  "estimateScope": "L2 execution gas only; excludes the variable Arbitrum L1 data-posting fee.",
+  "actions": {
+    "authorize": {
+      "gasUsed": "158110",
+      "estimatedFeeWei": "3367426780000",
+      "estimatedFeeEth": "0.000003367426",
+      "estimatedFeeUsd": "0.006280"
+    },
+    "capture": {
+      "gasUsed": "67936",
+      "estimatedFeeWei": "1446900928000",
+      "estimatedFeeEth": "0.000001446900",
+      "estimatedFeeUsd": "0.002698"
+    },
+    "expire": {
+      "gasUsed": "52261",
+      "estimatedFeeWei": "1113054778000",
+      "estimatedFeeEth": "0.000001113054",
+      "estimatedFeeUsd": "0.002076"
+    },
+    "release": {
+      "gasUsed": "56965",
+      "estimatedFeeWei": "1213240570000",
+      "estimatedFeeEth": "0.000001213240",
+      "estimatedFeeUsd": "0.002262"
+    }
+  }
+}

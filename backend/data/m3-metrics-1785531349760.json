@@ -1,0 +1,201 @@
+{
+  "capturedAt": "2026-07-31T20:55:49.760Z",
+  "metrics": {
+    "iso_messages_received": 11,
+    "iso_messages_routed": 11,
+    "tx_submitted": 6,
+    "tx_confirmed": 6,
+    "error_classified": 3,
+    "iso_duplicates": 2,
+    "capturedAtMs": 1785531349757,
+    "latency": {
+      "parse": {
+        "count": 11,
+        "avgMs": 0,
+        "minMs": 0,
+        "maxMs": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "db_lookup": {
+        "count": 6,
+        "avgMs": 2,
+        "minMs": 1,
+        "maxMs": 3,
+        "p50": 1,
+        "p95": 3,
+        "p99": 3
+      },
+      "gas_estimate": {
+        "count": 8,
+        "avgMs": 804,
+        "minMs": 554,
+        "maxMs": 1394,
+        "p50": 575,
+        "p95": 1394,
+        "p99": 1394
+      },
+      "tx_submit": {
+        "count": 6,
+        "avgMs": 782,
+        "minMs": 393,
+        "maxMs": 1399,
+        "p50": 639,
+        "p95": 1399,
+        "p99": 1399
+      },
+      "tx_confirm": {
+        "count": 6,
+        "avgMs": 724,
+        "minMs": 322,
+        "maxMs": 844,
+        "p50": 793,
+        "p95": 844,
+        "p99": 844
+      },
+      "tcp_response": {
+        "count": 11,
+        "avgMs": 1428,
+        "minMs": 5,
+        "maxMs": 3167,
+        "p50": 1778,
+        "p95": 3167,
+        "p99": 3167
+      }
+    },
+    "latencyByAction": {
+      "authorize": {
+        "parse": {
+          "count": 7,
+          "avgMs": 0,
+          "minMs": 0,
+          "maxMs": 0,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0
+        },
+        "db_lookup": {
+          "count": 6,
+          "avgMs": 2,
+          "minMs": 1,
+          "maxMs": 3,
+          "p50": 1,
+          "p95": 3,
+          "p99": 3
+        },
+        "gas_estimate": {
+          "count": 5,
+          "avgMs": 905,
+          "minMs": 554,
+          "maxMs": 1394,
+          "p50": 929,
+          "p95": 1394,
+          "p99": 1394
+        },
+        "tx_submit": {
+          "count": 4,
+          "avgMs": 760,
+          "minMs": 393,
+          "maxMs": 1399,
+          "p50": 607,
+          "p95": 1399,
+          "p99": 1399
+        },
+        "tx_confirm": {
+          "count": 4,
+          "avgMs": 676,
+          "minMs": 322,
+          "maxMs": 802,
+          "p50": 787,
+          "p95": 802,
+          "p99": 802
+        }
+      },
+      "capture": {
+        "parse": {
+          "count": 4,
+          "avgMs": 0,
+          "minMs": 0,
+          "maxMs": 0,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0
+        },
+        "gas_estimate": {
+          "count": 3,
+          "avgMs": 635,
+          "minMs": 555,
+          "maxMs": 776,
+          "p50": 575,
+          "p95": 776,
+          "p99": 776
+        },
+        "tx_submit": {
+          "count": 2,
+          "avgMs": 826,
+          "minMs": 652,
+          "maxMs": 999,
+          "p50": 652,
+          "p95": 999,
+          "p99": 999
+        },
+        "tx_confirm": {
+          "count": 2,
+          "avgMs": 819,
+          "minMs": 794,
+          "maxMs": 844,
+          "p50": 794,
+          "p95": 844,
+          "p99": 844
+        }
+      }
+    },
+    "latencyByOutcome": {
+      "authorize_e2e": {
+        "tcp_response": {
+          "count": 4,
+          "avgMs": 2329,
+          "minMs": 1778,
+          "maxMs": 3167,
+          "p50": 1988,
+          "p95": 3167,
+          "p99": 3167
+        }
+      },
+      "capture_e2e": {
+        "tcp_response": {
+          "count": 2,
+          "avgMs": 2230,
+          "minMs": 2071,
+          "maxMs": 2388,
+          "p50": 2071,
+          "p95": 2388,
+          "p99": 2388
+        }
+      },
+      "decline_processing": {
+        "tcp_response": {
+          "count": 3,
+          "avgMs": 639,
+          "minMs": 24,
+          "maxMs": 1103,
+          "p50": 791,
+          "p95": 1103,
+          "p99": 1103
+        }
+      },
+      "duplicate_processing": {
+        "tcp_response": {
+          "count": 2,
+          "avgMs": 8,
+          "minMs": 5,
+          "maxMs": 11,
+          "p50": 5,
+          "p95": 11,
+          "p99": 11
+        }
+      }
+    }
+  }
+}

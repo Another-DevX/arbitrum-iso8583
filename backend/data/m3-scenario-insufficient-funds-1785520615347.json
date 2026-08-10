@@ -1,0 +1,27 @@
+{
+  "scenario": "insufficient-funds",
+  "passed": false,
+  "expectedCode": "51",
+  "durationMs": 150441,
+  "requests": [
+    {
+      "mti": "0100",
+      "fields": {
+        "002": "TOK_TEST_002",
+        "003": "000000",
+        "004": "999999999999",
+        "007": "0731125424",
+        "011": "820315",
+        "012": "125424",
+        "013": "0731",
+        "037": "490982031500",
+        "042": "TERM_001",
+        "043": "MERCHANT001",
+        "049": "840"
+      }
+    }
+  ],
+  "responses": [],
+  "error": "Timed out waiting for ISO response",
+  "artifactPath": "data/m3-scenario-insufficient-funds-1785520615347.json"
+}

@@ -1,0 +1,56 @@
+{
+  "scenario": "insufficient-funds",
+  "passed": true,
+  "expectedCode": "51",
+  "receivedCode": "51",
+  "durationMs": 796,
+  "requests": [
+    {
+      "mti": "0100",
+      "fields": {
+        "002": "TOK_TEST_002",
+        "003": "000000",
+        "004": "999999999999",
+        "007": "0731154058",
+        "011": "830455",
+        "012": "154058",
+        "013": "0731",
+        "037": "807283045500",
+        "042": "TERM_001",
+        "043": "MERCHANT001",
+        "049": "840"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "mti": "0110",
+      "fields": {
+        "011": "830455",
+        "037": "807283045500",
+        "039": "51"
+      }
+    }
+  ],
+  "snapshotBefore": {
+    "available": "980000000",
+    "locked": "20000000",
+    "contractTokenBalance": "23852305113",
+    "merchantTokenBalance": "70172174887"
+  },
+  "snapshotAfter": {
+    "available": "980000000",
+    "locked": "20000000",
+    "contractTokenBalance": "23852305113",
+    "merchantTokenBalance": "70172174887"
+  },
+  "holdSnapshot": {
+    "user": "0x0000000000000000000000000000000000000000",
+    "merchant": "0x0000000000000000000000000000000000000000",
+    "token": "0x0000000000000000000000000000000000000000",
+    "amount": "0",
+    "expiresAt": 0,
+    "status": 0
+  },
+  "artifactPath": "data/m3-scenario-insufficient-funds-1785530458868.json"
+}

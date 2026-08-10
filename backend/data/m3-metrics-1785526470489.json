@@ -1,0 +1,173 @@
+{
+  "capturedAt": "2026-07-31T19:34:30.489Z",
+  "metrics": {
+    "iso_messages_received": 11,
+    "iso_messages_routed": 11,
+    "tx_submitted": 6,
+    "tx_confirmed": 6,
+    "error_classified": 3,
+    "iso_duplicates": 2,
+    "capturedAtMs": 1785526470486,
+    "latency": {
+      "parse": {
+        "count": 11,
+        "avgMs": 0,
+        "minMs": 0,
+        "maxMs": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "db_lookup": {
+        "count": 6,
+        "avgMs": 2,
+        "minMs": 1,
+        "maxMs": 4,
+        "p50": 1,
+        "p95": 4,
+        "p99": 4
+      },
+      "gas_estimate": {
+        "count": 8,
+        "avgMs": 747,
+        "minMs": 556,
+        "maxMs": 1375,
+        "p50": 580,
+        "p95": 1375,
+        "p99": 1375
+      },
+      "tx_submit": {
+        "count": 6,
+        "avgMs": 615,
+        "minMs": 392,
+        "maxMs": 930,
+        "p50": 524,
+        "p95": 930,
+        "p99": 930
+      },
+      "tx_confirm": {
+        "count": 6,
+        "avgMs": 516,
+        "minMs": 206,
+        "maxMs": 808,
+        "p50": 252,
+        "p95": 808,
+        "p99": 808
+      },
+      "total_iso": {
+        "count": 11,
+        "avgMs": 1179,
+        "minMs": 5,
+        "maxMs": 2546,
+        "p50": 1236,
+        "p95": 2546,
+        "p99": 2546
+      }
+    },
+    "latencyByAction": {
+      "authorize": {
+        "parse": {
+          "count": 7,
+          "avgMs": 0,
+          "minMs": 0,
+          "maxMs": 0,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0
+        },
+        "db_lookup": {
+          "count": 6,
+          "avgMs": 2,
+          "minMs": 1,
+          "maxMs": 4,
+          "p50": 1,
+          "p95": 4,
+          "p99": 4
+        },
+        "gas_estimate": {
+          "count": 5,
+          "avgMs": 792,
+          "minMs": 556,
+          "maxMs": 1375,
+          "p50": 580,
+          "p95": 1375,
+          "p99": 1375
+        },
+        "tx_submit": {
+          "count": 4,
+          "avgMs": 696,
+          "minMs": 524,
+          "maxMs": 930,
+          "p50": 538,
+          "p95": 930,
+          "p99": 930
+        },
+        "tx_confirm": {
+          "count": 4,
+          "avgMs": 511,
+          "minMs": 206,
+          "maxMs": 808,
+          "p50": 234,
+          "p95": 808,
+          "p99": 808
+        },
+        "total_iso": {
+          "count": 7,
+          "avgMs": 1277,
+          "minMs": 5,
+          "maxMs": 2546,
+          "p50": 1361,
+          "p95": 2546,
+          "p99": 2546
+        }
+      },
+      "capture": {
+        "parse": {
+          "count": 4,
+          "avgMs": 0,
+          "minMs": 0,
+          "maxMs": 0,
+          "p50": 0,
+          "p95": 0,
+          "p99": 0
+        },
+        "gas_estimate": {
+          "count": 3,
+          "avgMs": 673,
+          "minMs": 577,
+          "maxMs": 764,
+          "p50": 677,
+          "p95": 764,
+          "p99": 764
+        },
+        "tx_submit": {
+          "count": 2,
+          "avgMs": 453,
+          "minMs": 392,
+          "maxMs": 513,
+          "p50": 392,
+          "p95": 513,
+          "p99": 513
+        },
+        "tx_confirm": {
+          "count": 2,
+          "avgMs": 526,
+          "minMs": 252,
+          "maxMs": 799,
+          "p50": 252,
+          "p95": 799,
+          "p99": 799
+        },
+        "total_iso": {
+          "count": 4,
+          "avgMs": 1008,
+          "minMs": 13,
+          "maxMs": 2006,
+          "p50": 777,
+          "p95": 2006,
+          "p99": 2006
+        }
+      }
+    }
+  }
+}

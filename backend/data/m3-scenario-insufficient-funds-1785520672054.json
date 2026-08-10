@@ -1,0 +1,37 @@
+{
+  "scenario": "insufficient-funds",
+  "passed": false,
+  "expectedCode": "51",
+  "receivedCode": "96",
+  "durationMs": 620,
+  "requests": [
+    {
+      "mti": "0100",
+      "fields": {
+        "002": "TOK_TEST_002",
+        "003": "000000",
+        "004": "999999999999",
+        "007": "0731125751",
+        "011": "820668",
+        "012": "125751",
+        "013": "0731",
+        "037": "143482066800",
+        "042": "TERM_001",
+        "043": "MERCHANT001",
+        "049": "840"
+      }
+    }
+  ],
+  "responses": [
+    {
+      "mti": "0110",
+      "fields": {
+        "011": "820668",
+        "037": "143482066800",
+        "039": "96"
+      }
+    }
+  ],
+  "error": "expected 51, got 96",
+  "artifactPath": "data/m3-scenario-insufficient-funds-1785520672054.json"
+}
